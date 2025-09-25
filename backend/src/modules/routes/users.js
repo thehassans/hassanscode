@@ -677,3 +677,80 @@ router.get('/investors/me/metrics', auth, allowRoles('investor'), async (req, re
   })
   res.json({ currency: inv.investorProfile?.currency || 'SAR', investmentAmount: inv.investorProfile?.investmentAmount || 0, unitsSold: totalUnits, totalProfit, totalSaleValue, breakdown })
 })
+
+// Get investor performance by ID (admin, manager)
+router.get('/:id/investor-performance', auth, allowRoles('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params
+    const inv = await User.findById(id).populate('investorProfile.assignedProducts.product', 'name price baseCurrency')
+    if (!inv || inv.role !== 'investor') return res.status(404).json({ message: 'Investor not found' })
+    
+    const ownerId = inv.createdBy
+    const assigned = inv.investorProfile?.assignedProducts || []
+    const productIds = assigned.map(a => a.product?._id || a.product).filter(Boolean)
+    
+    if (productIds.length === 0){
+      return res.json({ 
+        currency: inv.investorProfile?.currency || 'SAR', 
+        investmentAmount: inv.investorProfile?.investmentAmount || 0, 
+        unitsSold: 0, 
+        totalProfit: 0, 
+        totalSaleValue: 0, 
+        breakdown: [] 
+      })
+    }
+    
+    const RATES = {
+      SAR: { SAR: 1, AED: 0.98, OMR: 0.10, BHD: 0.10 },
+      AED: { SAR: 1.02, AED: 1, OMR: 0.10, BHD: 0.10 },
+      OMR: { SAR: 9.78, AED: 9.58, OMR: 1, BHD: 0.98 },
+      BHD: { SAR: 9.94, AED: 9.74, OMR: 1.02, BHD: 1 },
+    }
+    
+    function convertPrice(val, from, to){ 
+      const r = RATES?.[from]?.[to]; 
+      return r ? (Number(val||0) * r) : Number(val||0) 
+    }
+    
+    const agents = await User.find({ role: 'agent', createdBy: ownerId }, { _id: 1 }).lean()
+    const managers = await User.find({ role: 'manager', createdBy: ownerId }, { _id: 1 }).lean()
+    const creatorIds = [ ownerId, ...agents.map(a=>a._id), ...managers.map(m=>m._id) ]
+    
+    const orders = await Order.aggregate([
+      { $match: { productId: { $in: productIds }, createdBy: { $in: creatorIds }, $or: [ { status: 'shipped' }, { shipmentStatus: 'delivered' } ] } },
+      { $group: { _id: '$productId', unitsSold: { $sum: '$quantity' } } }
+    ])
+    
+    const unitsMap = new Map(orders.map(o => [ String(o._id), o.unitsSold ]))
+    let totalUnits = 0
+    let totalProfit = 0
+    let totalSaleValue = 0
+    
+    const breakdown = assigned.map(a => {
+      const pid = String(a.product?._id || a.product)
+      const units = Number(unitsMap.get(pid) || 0)
+      totalUnits += units
+      const profit = units * Number(a.profitPerUnit || 0)
+      totalProfit += profit
+      const base = a.product?.baseCurrency || 'SAR'
+      const price = Number(a.product?.price || 0)
+      const invCur = inv.investorProfile?.currency || 'SAR'
+      const convertedUnitPrice = convertPrice(price, base, invCur)
+      const saleValue = units * convertedUnitPrice
+      totalSaleValue += saleValue
+      return { productId: pid, productName: a.product?.name || '', unitsSold: units, profit, saleValue }
+    })
+    
+    res.json({ 
+      currency: inv.investorProfile?.currency || 'SAR', 
+      investmentAmount: inv.investorProfile?.investmentAmount || 0, 
+      unitsSold: totalUnits, 
+      totalProfit, 
+      totalSaleValue, 
+      breakdown 
+    })
+  } catch (error) {
+    console.error('Error fetching investor performance:', error)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})

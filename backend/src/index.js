@@ -18,6 +18,7 @@ import financeRoutes from './modules/routes/finance.js';
 import supportRoutes from './modules/routes/support.js';
 import settingsRoutes from './modules/routes/settings.js';
 import notificationsRoutes from './modules/routes/notifications.js';
+import reportsRoutes from './modules/routes/reports.js';
 
 dotenv.config();
 
@@ -94,6 +95,7 @@ app.use('/api/finance', financeRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // Serve uploaded product images
 app.use('/uploads', (req, res, next) => {

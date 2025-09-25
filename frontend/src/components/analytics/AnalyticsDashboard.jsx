@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import analytics from '../../utils/analytics'
+import BusinessReports from './BusinessReports'
 
 const AnalyticsDashboard = () => {
   const [events, setEvents] = useState([])
@@ -12,6 +13,7 @@ const AnalyticsDashboard = () => {
     searches: 0,
     checkouts: 0
   })
+  const [activeView, setActiveView] = useState('dashboard') // 'dashboard' or 'reports'
 
   useEffect(() => {
     loadAnalyticsData()
@@ -60,16 +62,43 @@ const AnalyticsDashboard = () => {
     }
   }
 
+  // If business reports view is active, render the BusinessReports component
+  if (activeView === 'reports') {
+    return <BusinessReports />
+  }
+
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-        <button
-          onClick={clearAnalytics}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-        >
-          Clear Analytics
-        </button>
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveView('dashboard')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeView === 'dashboard'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            📊 Analytics
+          </button>
+          <button
+            onClick={() => setActiveView('reports')}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              activeView === 'reports'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            📈 Business Reports
+          </button>
+          <button
+            onClick={clearAnalytics}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+          >
+            Clear Analytics
+          </button>
+        </div>
       </div>
 
       {/* Stats Overview */}
