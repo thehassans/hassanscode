@@ -246,7 +246,7 @@ export default function SubmitOrder(){
         ...form, 
         customerLocation: locString, 
         quantity: Number(form.quantity||1),
-        preferredTiming: preferredTiming 
+        preferredTiming: form.preferredTiming 
       })
       setMsg('Order submitted')
       setForm({ 
