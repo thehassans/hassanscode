@@ -690,7 +690,12 @@ const ProductDetail = () => {
                       </div>
                       <div className="flex justify-between items-center py-3 px-4 bg-white rounded-xl shadow-sm">
                         <span className="text-gray-600 font-medium">Dimensions</span>
-                        <span className="font-semibold text-gray-900">{product.dimensions || 'N/A'}</span>
+                        <span className="font-semibold text-gray-900">
+                          {product.dimensions && typeof product.dimensions === 'object' 
+                            ? `${product.dimensions.length || 0} × ${product.dimensions.width || 0} × ${product.dimensions.height || 0} cm`
+                            : product.dimensions || 'N/A'
+                          }
+                        </span>
                       </div>
                     </div>
                     <div className="space-y-4">

@@ -22,7 +22,7 @@ export default function ProductCard({ product, onAddToCart }) {
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return '/placeholder-product.svg'
-    return imagePath.startsWith('http') ? imagePath : `${import.meta.env.VITE_API_BASE || 'http://localhost:3000'}${imagePath}`
+    return imagePath.startsWith('http') ? imagePath : `${import.meta.env.VITE_API_BASE || 'http://localhost:4000'}${imagePath}`
   }
 
   const renderStars = (rating) => {
