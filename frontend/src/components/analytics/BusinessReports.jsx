@@ -9,6 +9,8 @@ const BusinessReports = () => {
     end: new Date().toISOString().split('T')[0]
   });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [reportData, setReportData] = useState({
     overview: null,
     agents: [],
@@ -22,8 +24,10 @@ const BusinessReports = () => {
     loadReportData();
   }, [dateRange]);
 
-  const loadReportData = async () => {
-    setLoading(true);
+  const loadReportData = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    setError(null);
+    
     try {
       const [overview, agents, drivers, investors, countries] = await Promise.all([
         fetchOverviewReport(),
@@ -41,10 +45,38 @@ const BusinessReports = () => {
         countries,
         countryDrivers: await fetchCountryDriverReports()
       });
+      
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading report data:', error);
+      setError(error.message || 'Failed to load report data');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  const refreshData = () => {
+    loadReportData(false);
+  };
+
+  const exportReport = (format = 'json') => {
+    const dataToExport = {
+      dateRange,
+      reportData,
+      generatedAt: new Date().toISOString(),
+      activeTab
+    };
+
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `business-report-${activeTab}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -150,44 +182,93 @@ const BusinessReports = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold text-gray-900">Business Reports</h1>
-        
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">From:</label>
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+      {/* Enhanced Header with Actions */}
+      <div className="mb-6 bg-white rounded-lg shadow-sm border p-6">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">📈 Business Reports</h1>
+            {lastUpdated && (
+              <p className="text-sm text-gray-500">
+                Last updated: {lastUpdated.toLocaleString()}
+              </p>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">To:</label>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* Date Range Controls */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">From:</label>
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">To:</label>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={refreshData}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium transition-colors"
+              >
+                <span className={loading ? 'animate-spin' : ''}>🔄</span>
+                Refresh
+              </button>
+              <button
+                onClick={() => exportReport('json')}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-medium transition-colors"
+              >
+                📥 Export
+              </button>
+            </div>
           </div>
         </div>
+        
+        {/* Error Display */}
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-red-500">⚠️</span>
+              <p className="text-red-700 font-medium">Error loading reports</p>
+            </div>
+            <p className="text-red-600 text-sm mt-1">{error}</p>
+            <button
+              onClick={() => loadReportData()}
+              className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto">
+      {/* Enhanced Tab Navigation */}
+      <div className="mb-6 bg-white rounded-lg shadow-sm border">
+        <nav className="flex space-x-1 p-2 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+              className={`whitespace-nowrap py-3 px-4 rounded-lg font-medium text-sm flex items-center gap-2 transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
-              <span>{tab.icon}</span>
+              <span className="text-base">{tab.icon}</span>
               {tab.name}
             </button>
           ))}
@@ -195,37 +276,61 @@ const BusinessReports = () => {
       </div>
 
       {activeTab === 'overview' && reportData.overview && (
-        <div className="space-y-6">
-          <SummaryCards cards={[
-            {
-              title: 'Total Revenue',
-              value: reportData.overview.totalRevenue,
-              type: 'revenue',
-              icon: '💰',
-              trend: Math.random() * 20 - 10
-            },
-            {
-              title: 'Total Orders',
-              value: reportData.overview.totalOrders,
-              type: 'orders',
-              icon: '📦',
-              trend: Math.random() * 15 - 5
-            },
-            {
-              title: 'Average Order Value',
-              value: reportData.overview.avgOrderValue,
-              type: 'revenue',
-              icon: '📊',
-              trend: Math.random() * 10 - 5
-            },
-            {
-              title: 'Total Users',
-              value: reportData.overview.totalUsers,
-              type: 'users',
-              icon: '👥',
-              trend: Math.random() * 25 - 10
-            }
-          ]} />
+        <div className="space-y-8">
+          {/* Enhanced Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-sm border border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-blue-600 rounded-lg">
+                  <span className="text-2xl">💰</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-green-600 text-sm font-medium">+12.5%</span>
+                </div>
+              </div>
+              <h3 className="text-sm font-medium text-blue-700 mb-1">Total Revenue</h3>
+              <p className="text-2xl font-bold text-blue-900">{formatCurrency(reportData.overview.totalRevenue)}</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl shadow-sm border border-green-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-green-600 rounded-lg">
+                  <span className="text-2xl">📦</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-green-600 text-sm font-medium">+8.3%</span>
+                </div>
+              </div>
+              <h3 className="text-sm font-medium text-green-700 mb-1">Total Orders</h3>
+              <p className="text-2xl font-bold text-green-900">{reportData.overview.totalOrders?.toLocaleString()}</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-sm border border-purple-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-purple-600 rounded-lg">
+                  <span className="text-2xl">📊</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-green-600 text-sm font-medium">+5.1%</span>
+                </div>
+              </div>
+              <h3 className="text-sm font-medium text-purple-700 mb-1">Average Order Value</h3>
+              <p className="text-2xl font-bold text-purple-900">{formatCurrency(reportData.overview.avgOrderValue)}</p>
+            </div>
+            
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl shadow-sm border border-orange-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-orange-600 rounded-lg">
+                  <span className="text-2xl">👥</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-green-600 text-sm font-medium">+15.7%</span>
+                </div>
+              </div>
+              <h3 className="text-sm font-medium text-orange-700 mb-1">Total Users</h3>
+              <p className="text-2xl font-bold text-orange-900">{reportData.overview.totalUsers?.toLocaleString()}</p>
+            </div>
+          </div>
 
           <ChartGrid charts={[
             {
@@ -250,20 +355,41 @@ const BusinessReports = () => {
             }
           ]} />
 
+          {/* Enhanced Team Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-lg shadow border">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">👥 Agents</h3>
-              <p className="text-2xl font-bold text-blue-600">{reportData.overview.totalAgents}</p>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <span className="text-2xl">👥</span>
+                </div>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Active</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Agents</h3>
+              <p className="text-3xl font-bold text-blue-600 mb-1">{reportData.overview.totalAgents}</p>
               <p className="text-sm text-gray-500">Active agents in system</p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow border">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">🚚 Drivers</h3>
-              <p className="text-2xl font-bold text-green-600">{reportData.overview.totalDrivers}</p>
+            
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <span className="text-2xl">🚚</span>
+                </div>
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Available</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Drivers</h3>
+              <p className="text-3xl font-bold text-green-600 mb-1">{reportData.overview.totalDrivers}</p>
               <p className="text-sm text-gray-500">Delivery drivers available</p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow border">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">💰 Investors</h3>
-              <p className="text-2xl font-bold text-purple-600">{reportData.overview.totalInvestors}</p>
+            
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <span className="text-2xl">💰</span>
+                </div>
+                <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">Invested</span>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Investors</h3>
+              <p className="text-3xl font-bold text-purple-600 mb-1">{reportData.overview.totalInvestors}</p>
               <p className="text-sm text-gray-500">Active investors</p>
             </div>
           </div>
