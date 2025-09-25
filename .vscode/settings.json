@@ -1,0 +1,18 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "emmet.includeLanguages": { "javascript": "javascriptreact", "typescript": "typescriptreact" },
+  "css.validate": false,
+  "tailwindCSS.includeLanguages": { "javascript": "javascriptreact", "typescript": "typescriptreact" },
+  "tailwindCSS.emmetCompletions": true,
+  "tailwindCSS.experimental.classRegex": [
+    "className=\\\"([^\\\"]*)\\\"",
+    "class=\\\"([^\\\"]*)\\\"",
+    "\\\\`([^\\\\`]*)\\\\`"
+  ],
+  "tailwindCSS.rootDir": "frontend",
+  "tailwindCSS.experimental.configFile": "frontend/tailwind.config.js",
+  "files.associations": { "*.css": "tailwindcss" },
+  "editor.quickSuggestions": { "strings": true },
+  "editor.inlineSuggest.enabled": true
+}

@@ -1,0 +1,43 @@
+name: Backend Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy backend over SSH
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            APP_DIR="${{ secrets.BACKEND_APP_PATH }}"
+            REPO_URL="https://github.com/thehassans/day-night-code.git"
+            if [ ! -d "$APP_DIR/.git" ]; then
+              rm -rf "$APP_DIR"
+              git clone --depth 1 "$REPO_URL" "$APP_DIR"
+            else
+              cd "$APP_DIR"
+              git fetch --all --prune
+              git reset --hard origin/main
+            fi
+            cd "$APP_DIR/backend"
+            if command -v npm >/dev/null 2>&1; then
+              npm install --omit=dev --no-audit --no-fund
+            fi
+            if [ -n "${{ secrets.BACKEND_RESTART_CMD }}" ]; then
+              bash -lc "${{ secrets.BACKEND_RESTART_CMD }}"
+            fi
