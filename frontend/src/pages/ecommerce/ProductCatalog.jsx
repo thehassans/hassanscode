@@ -8,6 +8,7 @@ import { trackPageView, trackSearch, trackFilterUsage, trackSortUsage } from '..
 import { apiGet } from '../../api'
 import CategoryFilter from '../../components/ecommerce/CategoryFilter'
 import SearchBar from '../../components/ecommerce/SearchBar'
+import CountrySelector, { countries } from '../../components/ecommerce/CountrySelector'
 
 export default function ProductCatalog() {
   const toast = useToast()
@@ -22,6 +23,7 @@ export default function ProductCatalog() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('name')
   const [showFilters, setShowFilters] = useState(false)
+  const [selectedCountry, setSelectedCountry] = useState('SA') // Default to KSA
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -33,7 +35,7 @@ export default function ProductCatalog() {
     loadProducts()
     // Track page view
     trackPageView('/products', 'Product Catalog')
-  }, [selectedCategory, searchQuery, sortBy, currentPage])
+  }, [selectedCategory, searchQuery, sortBy, currentPage, selectedCountry])
 
   // Filter and sort products when dependencies change
   useEffect(() => {
@@ -41,7 +43,7 @@ export default function ProductCatalog() {
     if (currentPage !== 1) {
       setCurrentPage(1)
     }
-  }, [selectedCategory, searchQuery, sortBy])
+  }, [selectedCategory, searchQuery, sortBy, selectedCountry])
 
   const loadProducts = async () => {
     try {
@@ -57,8 +59,25 @@ export default function ProductCatalog() {
       
       const response = await apiGet(`/api/products/public?${params.toString()}`)
       if (response?.products) {
-        setProducts(response.products)
-        setPagination(response.pagination || { page: 1, pages: 1, total: 0 })
+        // Filter products by selected country availability
+        const selectedCountryName = countries.find(c => c.code === selectedCountry)?.name
+        const filteredByCountry = response.products.filter(product => {
+          // If product has no availableCountries array, show it (backward compatibility)
+          if (!product.availableCountries || product.availableCountries.length === 0) {
+            return true
+          }
+          // Check if the selected country is in the product's available countries
+          return product.availableCountries.includes(selectedCountryName)
+        })
+        
+        setProducts(filteredByCountry)
+        // Update pagination to reflect filtered results
+        const filteredPagination = {
+          ...response.pagination,
+          total: filteredByCountry.length,
+          pages: Math.ceil(filteredByCountry.length / 12)
+        }
+        setPagination(filteredPagination)
       }
     } catch (error) {
       console.error('Failed to load products:', error)
@@ -164,9 +183,17 @@ export default function ProductCatalog() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Products</h1>
-          <p className="text-gray-600">Discover our amazing collection of products</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Products</h1>
+            <p className="text-gray-600">Discover our amazing collection of products</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <CountrySelector 
+              selectedCountry={selectedCountry}
+              onCountryChange={(country) => setSelectedCountry(country.code)}
+            />
+          </div>
         </div>
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
@@ -294,6 +321,7 @@ export default function ProductCatalog() {
                     <ProductCard
                       key={product._id}
                       product={product}
+                      selectedCountry={selectedCountry}
                       onAddToCart={handleAddToCart}
                     />
                   ))}
@@ -358,6 +386,62 @@ export default function ProductCatalog() {
                 )}
               </>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Key Features Section */}
+      <div className="bg-gray-50 py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose Us</h2>
+            <p className="text-lg text-gray-600">Experience the best shopping with our premium services</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {/* Free Shipping */}
+            <div className="text-center">
+              <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Free Shipping</h3>
+              <p className="text-gray-600">Free delivery on orders over 100 SAR across all GCC countries</p>
+            </div>
+
+            {/* Quality Product */}
+            <div className="text-center">
+              <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Quality Product</h3>
+              <p className="text-gray-600">Premium quality products sourced from trusted manufacturers</p>
+            </div>
+
+            {/* Secure Payment */}
+            <div className="text-center">
+              <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Secure Payment</h3>
+              <p className="text-gray-600">Your payment information is protected with bank-level security</p>
+            </div>
+
+            {/* 24/7 Support */}
+            <div className="text-center">
+              <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M12 2.25a9.75 9.75 0 109.75 9.75A9.75 9.75 0 0012 2.25z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">24/7 Support</h3>
+              <p className="text-gray-600">Round-the-clock customer support to help you anytime</p>
+            </div>
           </div>
         </div>
       </div>

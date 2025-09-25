@@ -16,15 +16,16 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [activeTab, setActiveTab] = useState('description')
-  const [selectedVariants, setSelectedVariants] = useState({})
   const [zoomedImage, setZoomedImage] = useState(null)
   const [reviews, setReviews] = useState([])
   const [newReview, setNewReview] = useState({ rating: 5, comment: '', name: '' })
   const [showReviewForm, setShowReviewForm] = useState(false)
 
   useEffect(() => {
-    loadProduct()
-    loadReviews()
+    if (id) {
+      loadProduct()
+      loadReviews()
+    }
   }, [id])
 
   useEffect(() => {
@@ -51,13 +52,9 @@ const ProductDetail = () => {
       setLoading(true)
       const response = await apiGet(`/api/products/public/${id}`)
       if (response?.product) {
-        // Enhance product data with mock variants if not present
+        // Enhance product data without variants
         const enhancedProduct = {
           ...response.product,
-          variants: response.product.variants || {
-            size: ['S', 'M', 'L', 'XL'],
-            color: ['Black', 'White', 'Blue', 'Red']
-          },
           images: response.product.images || [response.product.imagePath || '/placeholder-product.svg']
         }
         setProduct(enhancedProduct)
@@ -121,8 +118,7 @@ const ProductDetail = () => {
       }
       
       const existingItemIndex = cartItems.findIndex(item => 
-        item.id === product._id && 
-        JSON.stringify(item.variants) === JSON.stringify(selectedVariants)
+        item.id === product._id
       )
       
       if (existingItemIndex >= 0) {
@@ -133,8 +129,7 @@ const ProductDetail = () => {
           name: product.name,
           price: product.price,
           imagePath: product.imagePath,
-          quantity: quantity,
-          variants: selectedVariants
+          quantity: quantity
         })
       }
       
@@ -146,23 +141,12 @@ const ProductDetail = () => {
       // Dispatch custom event to update cart count in header
       window.dispatchEvent(new CustomEvent('cartUpdated'))
       
-      const variantText = Object.keys(selectedVariants).length > 0 
-        ? ` (${Object.entries(selectedVariants).map(([key, value]) => `${key}: ${value}`).join(', ')})`
-        : ''
-      
-      toast.success(`Added ${quantity} ${product.name}${variantText} to cart`)
+      toast.success(`Added ${quantity} ${product.name} to cart`)
       setIsCartOpen(true)
     } catch (error) {
       console.error('Error adding to cart:', error)
       toast.error('Failed to add item to cart')
     }
-  }
-
-  const handleVariantChange = (variantType, value) => {
-    setSelectedVariants(prev => ({
-      ...prev,
-      [variantType]: value
-    }))
   }
 
   const handleReviewSubmit = (e) => {
@@ -494,34 +478,6 @@ const ProductDetail = () => {
                   </div>
                 )}
               </div>
-
-              {/* Product Variants */}
-              {product.variants && (
-                <div className="space-y-4">
-                  {Object.entries(product.variants).map(([variantType, options]) => (
-                    <div key={variantType}>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3 capitalize">
-                        {variantType}: <span className="text-blue-600">{selectedVariants[variantType]}</span>
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {options.map((option) => (
-                          <button
-                            key={option}
-                            onClick={() => handleVariantChange(variantType, option)}
-                            className={`px-4 py-2 rounded-lg border-2 font-medium transition-all ${
-                              selectedVariants[variantType] === option
-                                ? 'border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-200'
-                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {option}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               {/* Quantity and Actions */}
               {product.stockQty > 0 && (

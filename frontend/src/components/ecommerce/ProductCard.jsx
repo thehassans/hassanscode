@@ -3,8 +3,41 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../ui/Toast'
 import { trackProductView, trackAddToCart } from '../../utils/analytics'
 
-export default function ProductCard({ product, onAddToCart }) {
+export default function ProductCard({ product, onAddToCart, selectedCountry = 'SA' }) {
   const navigate = useNavigate()
+
+  // Currency conversion rates (same as used in other components)
+  const RATES = {
+    SAR: { SAR: 1, AED: 0.98, OMR: 0.10, BHD: 0.10 },
+    AED: { SAR: 1.02, AED: 1, OMR: 0.10, BHD: 0.10 },
+    OMR: { SAR: 9.78, AED: 9.58, OMR: 1, BHD: 0.98 },
+    BHD: { SAR: 9.94, AED: 9.74, OMR: 1.02, BHD: 1 },
+  }
+
+  // Country to currency mapping
+  const COUNTRY_TO_CURRENCY = {
+    'AE': 'AED', // UAE
+    'OM': 'OMR', // Oman
+    'SA': 'SAR', // KSA
+    'BH': 'BHD'  // Bahrain
+  }
+
+  const convertPrice = (value, fromCurrency, toCurrency) => {
+    const v = Number(value || 0)
+    if (!fromCurrency || !toCurrency || fromCurrency === toCurrency) return v
+    const rate = RATES[fromCurrency]?.[toCurrency]
+    return rate ? v * rate : v
+  }
+
+  const getDisplayCurrency = () => {
+    return COUNTRY_TO_CURRENCY[selectedCountry] || 'SAR'
+  }
+
+  const getConvertedPrice = (price) => {
+    const baseCurrency = product.baseCurrency || 'SAR'
+    const displayCurrency = getDisplayCurrency()
+    return convertPrice(price, baseCurrency, displayCurrency)
+  }
 
   const handleProductClick = () => {
     // Track product view
@@ -142,15 +175,15 @@ export default function ProductCard({ product, onAddToCart }) {
           {product.discount && product.discount > 0 ? (
             <div className="flex flex-col sm:flex-row sm:items-center gap-1">
               <span className="text-lg sm:text-xl font-bold text-red-600">
-                {formatPrice(product.price * (1 - product.discount / 100), product.baseCurrency)}
+                {formatPrice(getConvertedPrice(product.price * (1 - product.discount / 100)), getDisplayCurrency())}
               </span>
               <span className="text-xs sm:text-sm text-gray-500 line-through">
-                {formatPrice(product.price, product.baseCurrency)}
+                {formatPrice(getConvertedPrice(product.price), getDisplayCurrency())}
               </span>
             </div>
           ) : (
             <span className="text-lg sm:text-xl font-bold text-gray-900">
-              {formatPrice(product.price, product.baseCurrency)}
+              {formatPrice(getConvertedPrice(product.price), getDisplayCurrency())}
             </span>
           )}
         </div>
