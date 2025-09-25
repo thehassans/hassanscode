@@ -1340,29 +1340,48 @@ export default function WhatsAppInbox(){
   function Ticks({ isMe, status }){
     if (!isMe) return null
     const st = status || 'sent' // default to 'sent' if unknown
-    const Blue = '#4fb3ff'
-    const Grey = '#9aa4b2'
-    const color = st === 'read' ? Blue : Grey
-    const single = (
+    const Blue = '#4fb3ff'  // Blue for read messages
+    const Grey = '#9aa4b2'  // Grey for sent/delivered messages
+    
+    // Single tick for sent messages
+    const singleTick = (
       <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden fill="none" style={{display:'inline-block', verticalAlign:'middle'}}>
-        <path d="M20 6 9 17l-5-5" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M20 6 9 17l-5-5" stroke={Grey} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     )
+    
+    // Double ticks for delivered messages (grey)
     const doubleTicks = (
-      <span style={{display:'inline-flex', gap:2}}>
+      <span style={{display:'inline-flex', alignItems:'center', gap:0}}>
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden fill="none">
-          <path d="M20 6 9 17l-5-5" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M20 6 9 17l-5-5" stroke={Grey} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden fill="none" style={{marginLeft:-6}}>
-          <path d="M22 8 11 19l-3-3" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M22 8 11 19l-3-3" stroke={Grey} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </span>
     )
-    if (st === 'sent') return <span style={{ marginLeft: 6 }}>{single}</span>
+    
+    // Blue double ticks for read messages
+    const blueDoubleTicks = (
+      <span style={{display:'inline-flex', alignItems:'center', gap:0}}>
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden fill="none">
+          <path d="M20 6 9 17l-5-5" stroke={Blue} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden fill="none" style={{marginLeft:-6}}>
+          <path d="M22 8 11 19l-3-3" stroke={Blue} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </span>
+    )
+    
+    // Return appropriate tick based on status
+    if (st === 'sent') return <span style={{ marginLeft: 6 }}>{singleTick}</span>
     if (st === 'delivered') return <span style={{ marginLeft: 6 }}>{doubleTicks}</span>
-    if (st === 'read') return <span style={{ marginLeft: 6 }}>{doubleTicks}</span>
-    // fallback
-    return <span style={{ marginLeft: 6 }}>{single}</span>
+    if (st === 'read') return <span style={{ marginLeft: 6 }}>{blueDoubleTicks}</span>
+    if (st === 'sending') return <span style={{ marginLeft: 6, opacity: 0.5 }}>{singleTick}</span>
+    
+    // fallback to single tick
+    return <span style={{ marginLeft: 6 }}>{singleTick}</span>
   }
 
   function AudioBubble({ jid, msg, content, ensureMediaUrl }){

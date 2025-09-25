@@ -261,7 +261,7 @@ export default function WhatsAppConnect(){
                 sessions.map(s => (
                   <tr key={s.id} style={{borderTop:'1px solid var(--border)'}}>
                     <td style={{padding:'10px 12px'}}>
-                      <code>+{String(s.phone||'').replace(/^\+?/,'')}</code>
+                      <code>{formatWaNumber(s.phone || s.number)}</code>
                     </td>
                     <td style={{padding:'10px 12px'}}>{s.connectedAt ? new Date(s.connectedAt).toLocaleString() : '-'}</td>
                     <td style={{padding:'10px 12px'}}>{s.disconnectedAt ? new Date(s.disconnectedAt).toLocaleString() : (s.active ? '-' : '')}</td>
