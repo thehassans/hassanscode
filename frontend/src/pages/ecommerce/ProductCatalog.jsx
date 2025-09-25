@@ -217,18 +217,43 @@ export default function ProductCatalog() {
           </div>
         </div>
 
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full flex items-center justify-between bg-white border border-gray-300 rounded-lg px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707v4.586a1 1 0 01-.293.707L9 19.414V13.414a1 1 0 00-.293-.707L2.293 6.293A1 1 0 012 5.586V4z" />
+              </svg>
+              <span className="font-medium text-gray-900">Filters & Categories</span>
+            </div>
+            <svg 
+              className={`w-5 h-5 text-gray-500 transform transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
         <div className="flex gap-8">
           {/* Sidebar - Categories */}
-          <div className="w-64 flex-shrink-0">
-            <CategoryFilter
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-              productCounts={getProductCounts()}
-            />
+          <div className={`w-64 flex-shrink-0 ${showFilters ? 'block' : 'hidden'} lg:block`}>
+            <div className="sticky top-4">
+              <CategoryFilter
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                productCounts={getProductCounts()}
+              />
+            </div>
           </div>
 
           {/* Main Content */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
                 <p className="text-red-700">{error}</p>
@@ -264,7 +289,7 @@ export default function ProductCatalog() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 mb-8">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mb-8">
                   {products.map((product) => (
                     <ProductCard
                       key={product._id}
@@ -277,35 +302,56 @@ export default function ProductCatalog() {
                 {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex justify-center">
-                    <nav className="flex items-center gap-2">
+                    <nav className="flex items-center gap-1 sm:gap-2">
                       <button
                         onClick={() => paginate(currentPage - 1)}
                         disabled={currentPage === 1}
-                        className="px-3 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-2 sm:px-3 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                       >
-                        Previous
+                        <span className="hidden sm:inline">Previous</span>
+                        <span className="sm:hidden">‹</span>
                       </button>
                       
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-                        <button
-                          key={number}
-                          onClick={() => paginate(number)}
-                          className={`px-3 py-2 rounded-md border ${
-                            currentPage === number
-                              ? 'bg-orange-500 text-white border-orange-500'
-                              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {number}
-                        </button>
-                      ))}
+                      {/* Mobile: Show fewer page numbers */}
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(number => {
+                          // On mobile, show first, last, current, and adjacent pages
+                          if (window.innerWidth < 640) {
+                            return number === 1 || 
+                                   number === totalPages || 
+                                   Math.abs(number - currentPage) <= 1
+                          }
+                          return true
+                        })
+                        .map((number, index, array) => {
+                          // Add ellipsis for gaps
+                          const showEllipsis = index > 0 && number - array[index - 1] > 1
+                          return (
+                            <React.Fragment key={number}>
+                              {showEllipsis && (
+                                <span className="px-2 py-2 text-gray-500">...</span>
+                              )}
+                              <button
+                                onClick={() => paginate(number)}
+                                className={`px-2 sm:px-3 py-2 rounded-md border text-sm sm:text-base ${
+                                  currentPage === number
+                                    ? 'bg-orange-500 text-white border-orange-500'
+                                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                                }`}
+                              >
+                                {number}
+                              </button>
+                            </React.Fragment>
+                          )
+                        })}
                       
                       <button
                         onClick={() => paginate(currentPage + 1)}
                         disabled={currentPage === totalPages}
-                        className="px-3 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-2 sm:px-3 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                       >
-                        Next
+                        <span className="hidden sm:inline">Next</span>
+                        <span className="sm:hidden">›</span>
                       </button>
                     </nav>
                   </div>

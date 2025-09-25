@@ -92,29 +92,36 @@ export default function ProductCard({ product, onAddToCart }) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow duration-200 group cursor-pointer"
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
          onClick={handleProductClick}>
       {/* Product Image */}
       <div className="relative aspect-square overflow-hidden bg-gray-100">
         <img
           src={getImageUrl(product.images?.[0])}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           onError={(e) => {
             e.target.src = '/placeholder-product.jpg'
           }}
         />
         {product.discount && product.discount > 0 && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded-md text-sm font-medium">
+          <div className="absolute top-3 left-3 bg-gradient-to-r from-red-500 to-red-600 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg">
             -{product.discount}%
+          </div>
+        )}
+        {(!product.inStock || product.stockQty === 0) && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <span className="bg-white text-gray-900 px-3 py-1 rounded-full text-sm font-semibold">
+              Out of Stock
+            </span>
           </div>
         )}
       </div>
 
       {/* Product Info */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {/* Product Name */}
-        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+        <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-orange-600 transition-colors text-sm sm:text-base leading-tight">
           {product.name}
         </h3>
 
@@ -124,7 +131,7 @@ export default function ProductCard({ product, onAddToCart }) {
             <div className="flex items-center">
               {renderStars(product.rating)}
             </div>
-            <span className="ml-2 text-sm text-gray-600">
+            <span className="ml-1.5 text-xs sm:text-sm text-gray-600">
               ({product.reviewCount || 0})
             </span>
           </div>
@@ -133,16 +140,16 @@ export default function ProductCard({ product, onAddToCart }) {
         {/* Price */}
         <div className="mb-3">
           {product.discount && product.discount > 0 ? (
-            <>
-              <span className="text-lg font-bold text-red-600">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+              <span className="text-lg sm:text-xl font-bold text-red-600">
                 {formatPrice(product.price * (1 - product.discount / 100), product.baseCurrency)}
               </span>
-              <span className="ml-2 text-sm text-gray-500 line-through">
+              <span className="text-xs sm:text-sm text-gray-500 line-through">
                 {formatPrice(product.price, product.baseCurrency)}
               </span>
-            </>
+            </div>
           ) : (
-            <span className="text-lg font-bold text-gray-900">
+            <span className="text-lg sm:text-xl font-bold text-gray-900">
               {formatPrice(product.price, product.baseCurrency)}
             </span>
           )}
@@ -151,11 +158,13 @@ export default function ProductCard({ product, onAddToCart }) {
         {/* Stock Status */}
         <div className="mb-3">
           {product.inStock && product.stockQty > 0 ? (
-            <span className="text-sm text-green-600 font-medium">
+            <span className="text-xs sm:text-sm text-green-600 font-medium flex items-center gap-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               In Stock ({product.stockQty} available)
             </span>
           ) : (
-            <span className="text-sm text-red-600 font-medium">
+            <span className="text-xs sm:text-sm text-red-600 font-medium flex items-center gap-1">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
               Out of Stock
             </span>
           )}
@@ -165,7 +174,7 @@ export default function ProductCard({ product, onAddToCart }) {
         <button
           onClick={handleAddToCart}
           disabled={!product.inStock || product.stockQty === 0}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2.5 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-medium text-sm sm:text-base shadow-sm hover:shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
         >
           {!product.inStock || product.stockQty === 0 ? 'Out of Stock' : 'Add to Cart'}
         </button>

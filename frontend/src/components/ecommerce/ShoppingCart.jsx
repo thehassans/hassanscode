@@ -87,354 +87,141 @@ export default function ShoppingCart({ isOpen, onClose }) {
   if (!isOpen) return null
 
   return (
-    <div className="cart-overlay" onClick={onClose}>
-      <div className="cart-sidebar" onClick={(e) => e.stopPropagation()}>
-        <div className="cart-header">
-          <h2>Shopping Cart ({getTotalItems()} items)</h2>
-          <button className="cart-close-btn" onClick={onClose}>
-            ×
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end" onClick={onClose}>
+      <div 
+        className="w-full max-w-md sm:max-w-lg bg-white h-full shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+          <h2 className="text-lg sm:text-xl font-bold">
+            Shopping Cart ({getTotalItems()} items)
+          </h2>
+          <button 
+            className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+            onClick={onClose}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
-        <div className="cart-content">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
           {cartItems.length === 0 ? (
-            <div className="empty-cart">
-              <div className="empty-cart-icon">🛒</div>
-              <h3>Your cart is empty</h3>
-              <p>Add some products to get started!</p>
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <div className="text-6xl mb-4">🛒</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Your cart is empty</h3>
+              <p className="text-gray-600 mb-6">Add some products to get started!</p>
+              <button 
+                onClick={onClose}
+                className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                Continue Shopping
+              </button>
             </div>
           ) : (
             <>
-              <div className="cart-items">
+              <div className="p-4 sm:p-6 space-y-4">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="cart-item">
-                    <div className="cart-item-image">
+                  <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 bg-white rounded-lg overflow-hidden border border-gray-200">
                       <img 
                         src={item.imagePath || '/placeholder-product.jpg'} 
                         alt={item.name}
+                        className="w-full h-full object-cover"
                         onError={(e) => {
                           e.target.src = '/placeholder-product.jpg'
                         }}
                       />
                     </div>
                     
-                    <div className="cart-item-details">
-                      <h4>{item.name}</h4>
-                      <p className="cart-item-price">${item.price.toFixed(2)}</p>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2 mb-1">
+                        {item.name}
+                      </h4>
+                      <p className="text-orange-600 font-bold text-sm sm:text-base mb-3">
+                        ${item.price.toFixed(2)}
+                      </p>
                       
-                      <div className="quantity-controls">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center bg-white border border-gray-300 rounded-lg">
+                          <button 
+                            className="p-2 hover:bg-gray-100 transition-colors rounded-l-lg"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                            </svg>
+                          </button>
+                          <span className="px-3 py-2 text-sm font-medium min-w-[3rem] text-center">
+                            {item.quantity}
+                          </span>
+                          <button 
+                            className="p-2 hover:bg-gray-100 transition-colors rounded-r-lg"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                          </button>
+                        </div>
+                        
                         <button 
-                          className="quantity-btn"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          className="text-red-600 hover:text-red-800 text-sm font-medium transition-colors"
+                          onClick={() => removeFromCart(item.id)}
                         >
-                          -
-                        </button>
-                        <span className="quantity">{item.quantity}</span>
-                        <button 
-                          className="quantity-btn"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        >
-                          +
+                          Remove
                         </button>
                       </div>
                     </div>
                     
-                    <div className="cart-item-actions">
-                      <div className="item-total">
+                    <div className="text-right">
+                      <div className="font-bold text-gray-900 text-sm sm:text-base">
                         ${(item.price * item.quantity).toFixed(2)}
                       </div>
-                      <button 
-                        className="remove-btn"
-                        onClick={() => removeFromCart(item.id)}
-                      >
-                        Remove
-                      </button>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <div className="cart-footer">
-                <div className="cart-total">
-                  <div className="total-row">
-                    <span>Subtotal:</span>
-                    <span>${getTotalPrice().toFixed(2)}</span>
-                  </div>
-                  <div className="total-row total-final">
-                    <span>Total:</span>
-                    <span>${getTotalPrice().toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="cart-actions">
-                  <button 
-                    className="clear-cart-btn"
-                    onClick={clearCart}
-                  >
-                    Clear Cart
-                  </button>
-                  <button 
-                    className="checkout-btn"
-                    onClick={handleCheckout}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Processing...' : 'Checkout'}
-                  </button>
-                </div>
-              </div>
             </>
           )}
         </div>
+
+        {/* Footer */}
+        {cartItems.length > 0 && (
+          <div className="border-t border-gray-200 p-4 sm:p-6 bg-white">
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Subtotal:</span>
+                <span>${getTotalPrice().toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t border-gray-200">
+                <span>Total:</span>
+                <span>${getTotalPrice().toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button 
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-semibold text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+                onClick={handleCheckout}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Processing...' : 'Proceed to Checkout'}
+              </button>
+              <button 
+                className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                onClick={clearCart}
+              >
+                Clear Cart
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-
-      <style jsx>{`
-        .cart-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          z-index: 1000;
-          display: flex;
-          justify-content: flex-end;
-        }
-
-        .cart-sidebar {
-          background: white;
-          width: 400px;
-          max-width: 90vw;
-          height: 100vh;
-          display: flex;
-          flex-direction: column;
-          box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .cart-header {
-          padding: 20px;
-          border-bottom: 1px solid #eee;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .cart-header h2 {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 600;
-        }
-
-        .cart-close-btn {
-          background: none;
-          border: none;
-          font-size: 24px;
-          cursor: pointer;
-          padding: 0;
-          width: 30px;
-          height: 30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .cart-content {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-
-        .empty-cart {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 40px 20px;
-          text-align: center;
-        }
-
-        .empty-cart-icon {
-          font-size: 48px;
-          margin-bottom: 16px;
-        }
-
-        .empty-cart h3 {
-          margin: 0 0 8px 0;
-          color: #333;
-        }
-
-        .empty-cart p {
-          margin: 0;
-          color: #666;
-        }
-
-        .cart-items {
-          flex: 1;
-          overflow-y: auto;
-          padding: 0 20px;
-        }
-
-        .cart-item {
-          display: flex;
-          gap: 12px;
-          padding: 16px 0;
-          border-bottom: 1px solid #eee;
-        }
-
-        .cart-item-image {
-          width: 60px;
-          height: 60px;
-          flex-shrink: 0;
-        }
-
-        .cart-item-image img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: 4px;
-        }
-
-        .cart-item-details {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .cart-item-details h4 {
-          margin: 0 0 4px 0;
-          font-size: 14px;
-          font-weight: 500;
-          line-height: 1.3;
-        }
-
-        .cart-item-price {
-          margin: 0 0 8px 0;
-          color: #666;
-          font-size: 13px;
-        }
-
-        .quantity-controls {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .quantity-btn {
-          width: 24px;
-          height: 24px;
-          border: 1px solid #ddd;
-          background: white;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 14px;
-          border-radius: 2px;
-        }
-
-        .quantity-btn:hover {
-          background: #f5f5f5;
-        }
-
-        .quantity {
-          min-width: 20px;
-          text-align: center;
-          font-size: 14px;
-        }
-
-        .cart-item-actions {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          gap: 8px;
-        }
-
-        .item-total {
-          font-weight: 600;
-          font-size: 14px;
-        }
-
-        .remove-btn {
-          background: none;
-          border: none;
-          color: #dc3545;
-          cursor: pointer;
-          font-size: 12px;
-          text-decoration: underline;
-        }
-
-        .remove-btn:hover {
-          color: #c82333;
-        }
-
-        .cart-footer {
-          border-top: 1px solid #eee;
-          padding: 20px;
-        }
-
-        .cart-total {
-          margin-bottom: 16px;
-        }
-
-        .total-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 8px;
-        }
-
-        .total-final {
-          font-weight: 600;
-          font-size: 16px;
-          padding-top: 8px;
-          border-top: 1px solid #eee;
-        }
-
-        .cart-actions {
-          display: flex;
-          gap: 12px;
-        }
-
-        .clear-cart-btn {
-          flex: 1;
-          padding: 12px;
-          border: 1px solid #ddd;
-          background: white;
-          cursor: pointer;
-          border-radius: 4px;
-          font-size: 14px;
-        }
-
-        .clear-cart-btn:hover {
-          background: #f5f5f5;
-        }
-
-        .checkout-btn {
-          flex: 2;
-          padding: 12px;
-          background: #007bff;
-          color: white;
-          border: none;
-          cursor: pointer;
-          border-radius: 4px;
-          font-size: 14px;
-          font-weight: 500;
-        }
-
-        .checkout-btn:hover {
-          background: #0056b3;
-        }
-
-        .checkout-btn:disabled {
-          background: #6c757d;
-          cursor: not-allowed;
-        }
-
-        @media (max-width: 768px) {
-          .cart-sidebar {
-            width: 100vw;
-          }
-        }
-      `}</style>
     </div>
   )
+
 }
