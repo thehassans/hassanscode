@@ -601,7 +601,12 @@ const ProductDetail = () => {
                   {product.dimensions && (
                     <div className="flex justify-between py-2 border-b border-gray-100">
                       <span className="text-gray-600">Dimensions</span>
-                      <span className="font-medium text-gray-900">{product.dimensions}</span>
+                      <span className="font-medium text-gray-900">
+                        {typeof product.dimensions === 'object' 
+                          ? `${product.dimensions.length || 0} × ${product.dimensions.width || 0} × ${product.dimensions.height || 0} cm`
+                          : product.dimensions
+                        }
+                      </span>
                     </div>
                   )}
                   {product.madeInCountry && (
