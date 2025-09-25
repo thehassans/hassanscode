@@ -9,6 +9,7 @@ const OrderSchema = new mongoose.Schema({
   locationLat: { type: Number },
   locationLng: { type: Number },
   customerLocation: { type: String, default: '' },
+  preferredTiming: { type: String, default: '' },
 
   details: { type: String, default: '' },
 

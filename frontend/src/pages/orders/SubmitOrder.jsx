@@ -13,9 +13,28 @@ export default function SubmitOrder(){
     { key:'BH', name:'Bahrain', code:'+973', flag:'🇧🇭' },
   ]
   const DEFAULT_COUNTRY = COUNTRY_OPTS[2] // KSA
-  const [form, setForm] = useState({ customerName:'', customerPhone:'', phoneCountryCode: DEFAULT_COUNTRY.code, orderCountry: DEFAULT_COUNTRY.name, city:'', customerAddress:'', locationLat:'', locationLng:'', customerLocation:'', details:'', productId:'', quantity: 1, total: '', discount:'', shipping:'', invoiceNumber: '' })
+  const [form, setForm] = useState({ 
+    customerName:'', 
+    customerPhone:'', 
+    phoneCountryCode: DEFAULT_COUNTRY.code, 
+    orderCountry: DEFAULT_COUNTRY.name, 
+    city:'', 
+    customerAddress:'', 
+    locationLat:'', 
+    locationLng:'', 
+    customerLocation:'', 
+    details:'', 
+    productId:'', 
+    quantity: 1, 
+    total: '', 
+    discount:'', 
+    shipping:'', 
+    invoiceNumber: '',
+    preferredTiming: '' // New field for timing
+  })
   const [customerInfo, setCustomerInfo] = useState({ name:'', fullPhone:'' })
   const [coordsInput, setCoordsInput] = useState('')
+  const [locationValidation, setLocationValidation] = useState({ isValid: true, message: '' }) // New validation state
   const [me, setMe] = useState(null)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
@@ -223,9 +242,33 @@ export default function SubmitOrder(){
       const locString = (form.locationLat && form.locationLng)
         ? `(${Number(form.locationLat).toFixed(6)}, ${Number(form.locationLng).toFixed(6)})`
         : (form.customerLocation || form.customerAddress || form.city || form.orderCountry)
-      await apiPost('/api/orders', { ...form, customerLocation: locString, quantity: Number(form.quantity||1) })
+      await apiPost('/api/orders', { 
+        ...form, 
+        customerLocation: locString, 
+        quantity: Number(form.quantity||1),
+        preferredTiming: preferredTiming 
+      })
       setMsg('Order submitted')
-      setForm({ customerName:'', customerPhone:'', phoneCountryCode: DEFAULT_COUNTRY.code, orderCountry: DEFAULT_COUNTRY.name, city:'', customerAddress:'', locationLat:'', locationLng:'', customerLocation:'', details:'', productId:'', quantity: 1, total: '', discount:'', shipping:'', invoiceNumber: genInvoice() })
+      setForm({ 
+        customerName:'', 
+        customerPhone:'', 
+        phoneCountryCode: DEFAULT_COUNTRY.code, 
+        orderCountry: DEFAULT_COUNTRY.name, 
+        city:'', 
+        customerAddress:'', 
+        locationLat:'', 
+        locationLng:'', 
+        customerLocation:'', 
+        details:'', 
+        productId:'', 
+        quantity: 1, 
+        total: '', 
+        discount:'', 
+        shipping:'', 
+        invoiceNumber: genInvoice(),
+        preferredTiming: '' // Reset timing
+      })
+      setLocationValidation({ isValid: true, message: '' }) // Reset validation
       load()
     }catch(err){
       setMsg(err?.message || 'Failed to submit order')
@@ -295,9 +338,34 @@ export default function SubmitOrder(){
       const display = data?.display_name || ''
       const addr = data?.address || {}
       const cityGuess = addr.city || addr.town || addr.village || addr.suburb || ''
+      
+      // Validate if resolved city matches selected city
+      if (form.city && cityGuess) {
+        const normalizedFormCity = form.city.toLowerCase().trim()
+        const normalizedResolvedCity = cityGuess.toLowerCase().trim()
+        
+        if (normalizedFormCity !== normalizedResolvedCity) {
+          setLocationValidation({
+            isValid: false,
+            message: `Invalid address: Location is in ${cityGuess}, but selected city is ${form.city}`
+          })
+        } else {
+          setLocationValidation({ isValid: true, message: '' })
+        }
+      }
+      
       setForm(f=> ({ ...f, customerAddress: display || f.customerAddress, city: f.city || cityGuess }))
-    }catch(err){ /* ignore errors, keep manual entry */ }
+    }catch(err){ 
+      setLocationValidation({ isValid: false, message: 'Failed to validate location' })
+    }
   }
+
+  // Preferred timing options
+  const timingOptions = [
+    { value: '9am-12pm', label: '9 AM - 12 PM' },
+    { value: '12pm-3pm', label: '12 PM - 3 PM' },
+    { value: '3pm-6pm', label: '3 PM - 6 PM' }
+  ]
 
   return (
     <div>
@@ -431,8 +499,22 @@ export default function SubmitOrder(){
                 </div>
               </div>
 
+              {/* Location validation message */}
+              {!locationValidation.isValid && (
+                <div style={{
+                  padding: '8px 12px',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  borderRadius: 6,
+                  color: '#dc2626',
+                  fontSize: 14
+                }}>
+                  {locationValidation.message}
+                </div>
+              )}
+
               <div>
-                <div className="label">Customer Phone Number</div>
+                 <div className="label">Customer Phone Number</div>
                 <div style={{display:'grid', gridTemplateColumns:'auto 1fr', gap:6, alignItems:'center'}}>
                   <div className="input" style={{padding:'0 10px', display:'flex', alignItems:'center'}}>{form.phoneCountryCode || ''}</div>
                   <input className="input" name="customerPhone" value={form.customerPhone} onChange={onChange} placeholder="e.g. 5xxxxxxx" required autoComplete="tel" />
@@ -446,6 +528,48 @@ export default function SubmitOrder(){
               <div>
                 <div className="label">Order Details</div>
                 <textarea className="input" name="details" value={form.details} onChange={onChange} placeholder="Describe items, quantities, notes..." rows={4} required />
+              </div>
+
+              {/* Preferred Timing Toggle */}
+              <div>
+                <div className="label">Preferred Timing</div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 8,
+                  marginTop: 4
+                }}>
+                  {timingOptions.map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, preferredTiming: option.value }))}
+                      style={{
+                        padding: '10px 12px',
+                        border: `1px solid ${form.preferredTiming === option.value ? 'rgba(0,168,132,0.35)' : 'var(--border)'}`,
+                        background: form.preferredTiming === option.value ? 'rgba(0,168,132,0.12)' : 'var(--panel)',
+                        color: form.preferredTiming === option.value ? 'var(--fg)' : 'inherit',
+                        borderRadius: 6,
+                        fontSize: 14,
+                        fontWeight: form.preferredTiming === option.value ? 600 : 400,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {form.preferredTiming && (
+                  <div style={{
+                    fontSize: 12,
+                    opacity: 0.8,
+                    marginTop: 6,
+                    color: 'var(--muted)'
+                  }}>
+                    Selected: {timingOptions.find(opt => opt.value === form.preferredTiming)?.label}
+                  </div>
+                )}
               </div>
             </div>
 
