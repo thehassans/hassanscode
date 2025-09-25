@@ -1646,24 +1646,53 @@ export default function WhatsAppInbox(){
 
   const mobileChatHeader = (
     <>
-      <div className="wa-chat-header" style={{ display: isMobile ? 'flex' : 'none' }}>
-        <button className="btn secondary" onClick={()=>{ const qs=new URLSearchParams(location.search); qs.delete('jid'); navigate(`${location.pathname}?${qs.toString()}`.replace(/\?$/,''), { replace:true }) }} aria-label="Back" title="Back">←</button>
+      <div className="wa-chat-header" style={{ 
+        display: isMobile ? 'flex' : 'none',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1300,
+        background: 'var(--wa-header)',
+        borderBottom: '1px solid var(--border)',
+        height: MOBILE_HDR_H,
+        padding: '8px 10px',
+        alignItems: 'center',
+        gap: 10,
+        touchAction: 'pan-x'
+      }}>
+        <button 
+          className="btn secondary" 
+          onClick={()=>{ 
+            const qs=new URLSearchParams(location.search); 
+            qs.delete('jid'); 
+            navigate(`${location.pathname}?${qs.toString()}`.replace(/\?$/,''), { replace:true }) 
+          }} 
+          aria-label="Back to chat list" 
+          title="Back to chat list"
+          style={{width:36,height:36,padding:0,display:'grid',placeItems:'center'}}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5"/>
+            <path d="M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
         <Avatar name={activeChat?.name || formatJid(activeJid)} />
-        <div style={{display:'grid'}}>
-          <div style={{fontWeight:800}}>{activeChat?.name || formatJid(activeJid)}</div>
-          {activeChat?.owner?.name && <div className="helper" style={{fontSize:11}}>Assigned: {activeChat.owner.name}</div>}
+        <div style={{display:'grid', flex: 1, minWidth: 0}}>
+          <div style={{fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{activeChat?.name || formatJid(activeJid)}</div>
+          {activeChat?.owner?.name && <div className="helper" style={{fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>Assigned: {activeChat.owner.name}</div>}
           {activeJid && (
-            <div className="helper" style={{fontSize:11}}>
+            <div className="helper" style={{fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
               {countryNameFromJid(activeJid) && <span style={{marginRight:6, padding:'2px 6px', border:'1px solid var(--border)', borderRadius:999}}>{countryNameFromJid(activeJid)}</span>}
               {formatJid(activeJid)}
             </div>
           )}
         </div>
-        <div style={{marginLeft:'auto', display:'flex', gap:6, alignItems:'center'}}>
+        <div style={{display:'flex', gap:6, alignItems:'center', flexShrink: 0}}>
           {myRole === 'agent' ? (
-            <button className="btn success" onClick={goToSubmitOrder} title="Submit Order" aria-label="Submit Order">Submit Order</button>
+            <button className="btn success small" onClick={goToSubmitOrder} title="Submit Order" aria-label="Submit Order">Order</button>
           ) : (
-            <button className="btn" onClick={openAssign} title="Submit to Agent" aria-label="Submit to Agent">Submit to Agent</button>
+            <button className="btn small" onClick={openAssign} title="Submit to Agent" aria-label="Submit to Agent">Assign</button>
           )}
         </div>
       </div>
@@ -1842,7 +1871,9 @@ export default function WhatsAppInbox(){
             </div>
 
             {/* Messages */}
-            <div ref={listRef} className={`wa-messages-list ${recording ? 'recording' : ''}`}>
+            <div ref={listRef} className={`wa-messages-list ${recording ? 'recording' : ''}`} style={{
+              paddingTop: isMobile ? MOBILE_HDR_H : 0
+            }}>
               {hasMore && (
                 <div style={{textAlign:'center'}}>
                   <button className="btn secondary" onClick={loadEarlier} disabled={loadingMore}>{loadingMore ? 'Loading...' : 'Load Earlier'}</button>
