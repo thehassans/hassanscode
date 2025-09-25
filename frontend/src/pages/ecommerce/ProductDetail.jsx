@@ -275,7 +275,13 @@ const ProductDetail = () => {
     )
   }
 
-  const images = product.imagePath ? [product.imagePath] : ['/placeholder-product.jpg']
+  // Handle multiple image sources with fallbacks
+  const images = product.images && product.images.length > 0 
+    ? product.images 
+    : product.imagePath 
+      ? [product.imagePath] 
+      : ['/placeholder-product.jpg']
+  
   const originalPrice = product.onSale ? product.originalPrice : null
 
   return (
@@ -314,7 +320,11 @@ const ProductDetail = () => {
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-zoom-in"
                       onClick={() => setZoomedImage(zoomedImage || images[selectedImage] || '/placeholder-product.jpg')}
                       onError={(e) => {
+                        console.log('Image failed to load:', e.target.src)
                         e.target.src = '/placeholder-product.jpg'
+                      }}
+                      onLoad={() => {
+                        console.log('Image loaded successfully:', images[selectedImage])
                       }}
                     />
                   )}
@@ -359,6 +369,7 @@ const ProductDetail = () => {
                           alt={`${product.name} ${index + 1}`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
+                            console.log('Thumbnail image failed to load:', e.target.src)
                             e.target.src = '/placeholder-product.jpg'
                           }}
                         />

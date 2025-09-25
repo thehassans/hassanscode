@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { apiGet, apiUpload, apiPatch, apiDelete, apiUploadPatch, API_BASE } from '../../api'
+import { apiGet, apiUpload, apiPatch, apiDelete, apiUploadPatch, API_BASE, apiPost } from '../../api'
 
   // Convert ISO 3166-1 alpha-2 country code to emoji flag
   function codeToFlag(code){
@@ -38,6 +38,10 @@ export default function InhouseProducts(){
   // Quick popups
   const [stockPopup, setStockPopup] = useState({ open:false, product:null, stockUAE:0, stockOman:0, stockKSA:0, stockBahrain:0, inStock:true })
   const [pricePopup, setPricePopup] = useState({ open:false, product:null, baseCurrency:'SAR', price:'', purchasePrice:'', x:0, y:0 })
+  // Gemini AI state
+  const [categories, setCategories] = useState([])
+  const [generatingDescription, setGeneratingDescription] = useState(false)
+  const [aiDescription, setAiDescription] = useState(null)
 
   function openGallery(images, startIdx=0){
     const imgs = (images||[]).filter(Boolean)
@@ -126,6 +130,55 @@ export default function InhouseProducts(){
     } else setForm(f => ({ ...f, [name]: value }))
   }
 
+  // Generate product description using Gemini AI
+  async function generateDescription(){
+    if (!form.name || !form.category) {
+      setMsg('Please enter product name and select category first')
+      return
+    }
+
+    setGeneratingDescription(true)
+    setMsg('')
+    
+    try {
+      const response = await apiPost('/api/products/generate-description', {
+        productName: form.name,
+        category: form.category,
+        additionalInfo: form.description || ''
+      })
+
+      if (response.success && response.data) {
+        setAiDescription(response.data)
+        setMsg('AI description generated successfully! You can review and use it below.')
+      } else {
+        setMsg('Failed to generate description. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error generating description:', error)
+      setMsg(error.message || 'Failed to generate description. Please check your internet connection and try again.')
+    } finally {
+      setGeneratingDescription(false)
+    }
+  }
+
+  // Use AI generated description
+  function useAiDescription(){
+    if (!aiDescription) return
+    
+    setForm(f => ({ 
+      ...f, 
+      description: aiDescription.description || f.description
+    }))
+    setAiDescription(null)
+    setMsg('AI description applied to the form')
+  }
+
+  // Clear AI description
+  function clearAiDescription(){
+    setAiDescription(null)
+    setMsg('')
+  }
+
   function toggleCountry(k){
     setForm(f => {
       const has = f.availableCountries.includes(k)
@@ -163,7 +216,24 @@ export default function InhouseProducts(){
     finally{ setLoading(false) }
   }
 
-  useEffect(()=>{ load() },[])
+  // Load categories from API
+  async function loadCategories(){
+    try{
+      const data = await apiGet('/api/products/categories')
+      if (data.success && data.categories) {
+        setCategories(data.categories)
+      }
+    }catch(err){ 
+      console.error('Failed to load categories:', err)
+      // Fallback to default categories
+      setCategories(['Skincare', 'Haircare', 'Bodycare', 'Makeup', 'Fragrance', 'Health & Wellness', 'Baby Care', 'Men\'s Grooming', 'Tools & Accessories', 'Gift Sets', 'Other'])
+    }
+  }
+
+  useEffect(()=>{ 
+    load()
+    loadCategories()
+  },[])
 
   // Load current user to determine permissions
   useEffect(()=>{
@@ -177,29 +247,62 @@ export default function InhouseProducts(){
   async function onCreate(e){
     e.preventDefault()
     setMsg('')
+    
+    // Validation
+    if (!form.name.trim()) {
+      setMsg('Product name is required')
+      return
+    }
+    if (!form.price || parseFloat(form.price) <= 0) {
+      setMsg('Valid price is required')
+      return
+    }
+    if (!form.category) {
+      setMsg('Category is required')
+      return
+    }
+    if (!form.description.trim()) {
+      setMsg('Product description is required')
+      return
+    }
+    if (form.availableCountries.length === 0) {
+      setMsg('At least one country must be selected')
+      return
+    }
+    
     setSaving(true)
     try{
       const fd = new FormData()
-      fd.append('name', form.name)
+      fd.append('name', form.name.trim())
       fd.append('price', form.price)
       if (form.purchasePrice) fd.append('purchasePrice', form.purchasePrice)
       fd.append('availableCountries', form.availableCountries.join(','))
       fd.append('baseCurrency', form.baseCurrency)
       fd.append('category', form.category)
       fd.append('madeInCountry', form.madeInCountry)
-      fd.append('description', form.description)
+      fd.append('description', form.description.trim())
       fd.append('inStock', String(form.inStock))
       fd.append('stockUAE', String(form.stockUAE))
       fd.append('stockOman', String(form.stockOman))
       fd.append('stockKSA', String(form.stockKSA))
       fd.append('stockBahrain', String(form.stockBahrain))
       for (const f of (form.images||[])) fd.append('images', f)
-      await apiUpload('/api/products', fd)
-      setForm({ name:'', price:'', purchasePrice:'', baseCurrency:'SAR', category:'Other', madeInCountry:'', description:'', availableCountries:[], inStock: true, stockUAE: 0, stockOman: 0, stockKSA: 0, stockBahrain: 0, images: [] })
-      setImagePreviews([])
-      setMsg('Product created')
-      load()
-    }catch(err){ setMsg(err?.message || 'Failed to create product') }
+      
+      const response = await apiUpload('/api/products', fd)
+      
+      if (response.success) {
+        setForm({ name:'', price:'', purchasePrice:'', baseCurrency:'SAR', category:'Other', madeInCountry:'', description:'', availableCountries:[], inStock: true, stockUAE: 0, stockOman: 0, stockKSA: 0, stockBahrain: 0, images: [] })
+        setImagePreviews([])
+        setAiDescription(null)
+        setMsg('Product created successfully!')
+        load()
+      } else {
+        setMsg(response.message || 'Failed to create product')
+      }
+    }catch(err){ 
+      console.error('Error creating product:', err)
+      setMsg(err?.message || 'Failed to create product. Please check your connection and try again.') 
+    }
     finally{ setSaving(false) }
   }
 
@@ -327,10 +430,18 @@ export default function InhouseProducts(){
             <div>
               <div className="label">Category</div>
               <select className="input" name="category" value={form.category} onChange={onChange}>
-                <option value="Skincare">Skincare</option>
-                <option value="Haircare">Haircare</option>
-                <option value="Bodycare">Bodycare</option>
-                <option value="Other">Other</option>
+                {categories.length > 0 ? (
+                  categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))
+                ) : (
+                  <>
+                    <option value="Skincare">Skincare</option>
+                    <option value="Haircare">Haircare</option>
+                    <option value="Bodycare">Bodycare</option>
+                    <option value="Other">Other</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
@@ -393,8 +504,47 @@ export default function InhouseProducts(){
             </div>
           )}
           <div>
-            <div className="label">Description</div>
+            <div className="label" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <span>Description</span>
+              <div style={{display: 'flex', gap: 8}}>
+                <button 
+                  type="button" 
+                  className="btn" 
+                  onClick={generateDescription}
+                  disabled={generatingDescription || !form.name || !form.category}
+                  style={{fontSize: '12px', padding: '4px 8px', background: '#4CAF50', color: 'white'}}
+                >
+                  {generatingDescription ? 'Generating...' : '✨ AI Generate'}
+                </button>
+                {aiDescription && (
+                  <>
+                    <button 
+                      type="button" 
+                      className="btn" 
+                      onClick={useAiDescription}
+                      style={{fontSize: '12px', padding: '4px 8px', background: '#2196F3', color: 'white'}}
+                    >
+                      Use AI Description
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn" 
+                      onClick={clearAiDescription}
+                      style={{fontSize: '12px', padding: '4px 8px', background: '#f44336', color: 'white'}}
+                    >
+                      Clear
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
             <textarea className="input" name="description" value={form.description} onChange={onChange} placeholder="Describe the product" rows={3} />
+            {aiDescription && (
+              <div style={{marginTop: 8, padding: 12, background: '#f5f5f5', borderRadius: 6, border: '1px solid #ddd'}}>
+                <div style={{fontSize: '12px', fontWeight: 'bold', marginBottom: 8, color: '#666'}}>AI Generated Description:</div>
+                <div style={{fontSize: '14px', lineHeight: '1.4'}}>{aiDescription}</div>
+              </div>
+            )}
           </div>
           <div>
             <div className="label">Images</div>

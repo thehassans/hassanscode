@@ -5,6 +5,7 @@ import { auth, allowRoles } from '../middleware/auth.js'
 import Product from '../models/Product.js'
 import User from '../models/User.js'
 import { createNotification } from './notifications.js'
+import geminiService from '../services/geminiService.js'
 
 const router = express.Router()
 
@@ -280,6 +281,79 @@ router.delete('/:id', auth, allowRoles('admin','user','manager'), async (req, re
   }
   await Product.deleteOne({ _id: id })
   res.json({ message: 'Deleted' })
+})
+
+// Generate product description using Gemini AI
+router.post('/generate-description', auth, allowRoles('admin','user','manager'), async (req, res) => {
+  try {
+    const { productName, category, additionalInfo } = req.body
+
+    if (!productName || !category) {
+      return res.status(400).json({ 
+        message: 'Product name and category are required' 
+      })
+    }
+
+    if (!geminiService.isAvailable()) {
+      return res.status(503).json({ 
+        message: 'AI service is not available. Please check API configuration.' 
+      })
+    }
+
+    const description = await geminiService.generateProductDescription(
+      productName, 
+      category, 
+      additionalInfo || ''
+    )
+
+    const tags = await geminiService.generateProductTags(
+      productName, 
+      category, 
+      description.description
+    )
+
+    res.json({
+      success: true,
+      data: {
+        ...description,
+        tags
+      }
+    })
+  } catch (error) {
+    console.error('Generate description error:', error)
+    res.status(500).json({ 
+      message: error.message || 'Failed to generate product description' 
+    })
+  }
+})
+
+// Get available product categories
+router.get('/categories', async (req, res) => {
+  try {
+    const categories = [
+      'Skincare',
+      'Haircare', 
+      'Bodycare',
+      'Makeup',
+      'Fragrance',
+      'Health & Wellness',
+      'Baby Care',
+      'Men\'s Grooming',
+      'Tools & Accessories',
+      'Gift Sets',
+      'Other'
+    ]
+
+    res.json({
+      success: true,
+      categories
+    })
+  } catch (error) {
+    console.error('Get categories error:', error)
+    res.status(500).json({ 
+      message: 'Failed to fetch categories' 
+    })
+  }
 })
 
 export default router
