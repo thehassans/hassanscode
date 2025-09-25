@@ -49,7 +49,7 @@ const ProductDetail = () => {
   const loadProduct = async () => {
     try {
       setLoading(true)
-      const response = await apiGet(`/api/products/${id}`)
+      const response = await apiGet(`/api/products/public/${id}`)
       if (response?.product) {
         // Enhance product data with mock variants if not present
         const enhancedProduct = {
