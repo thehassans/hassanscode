@@ -128,11 +128,11 @@ export default function ShoppingCart({ isOpen, onClose }) {
                   <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 bg-white rounded-lg overflow-hidden border border-gray-200">
                       <img 
-                        src={item.imagePath || '/placeholder-product.jpg'} 
+                        src={item.imagePath || '/placeholder-product.svg'} 
                         alt={item.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          e.target.src = '/placeholder-product.jpg'
+                          e.target.src = '/placeholder-product.svg'
                         }}
                       />
                     </div>

@@ -58,7 +58,7 @@ const ProductDetail = () => {
             size: ['S', 'M', 'L', 'XL'],
             color: ['Black', 'White', 'Blue', 'Red']
           },
-          images: response.product.images || [response.product.imagePath || '/placeholder-product.jpg']
+          images: response.product.images || [response.product.imagePath || '/placeholder-product.svg']
         }
         setProduct(enhancedProduct)
       } else {
@@ -280,7 +280,7 @@ const ProductDetail = () => {
     ? product.images 
     : product.imagePath 
       ? [product.imagePath] 
-      : ['/placeholder-product.jpg']
+      : ['/placeholder-product.svg']
   
   const originalPrice = product.onSale ? product.originalPrice : null
 
@@ -315,13 +315,13 @@ const ProductDetail = () => {
                     <div className="w-full h-full bg-gray-300 animate-pulse"></div>
                   ) : (
                     <img
-                      src={zoomedImage || images[selectedImage] || '/placeholder-product.jpg'}
+                      src={zoomedImage || images[selectedImage] || '/placeholder-product.svg'}
                       alt={product.name}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-zoom-in"
-                      onClick={() => setZoomedImage(zoomedImage || images[selectedImage] || '/placeholder-product.jpg')}
+                      onClick={() => setZoomedImage(zoomedImage || images[selectedImage] || '/placeholder-product.svg')}
                       onError={(e) => {
                         console.log('Image failed to load:', e.target.src)
-                        e.target.src = '/placeholder-product.jpg'
+                        e.target.src = '/placeholder-product.svg'
                       }}
                       onLoad={() => {
                         console.log('Image loaded successfully:', images[selectedImage])
@@ -365,12 +365,12 @@ const ProductDetail = () => {
                         }}
                       >
                         <img
-                          src={image || '/placeholder-product.jpg'}
+                          src={image || '/placeholder-product.svg'}
                           alt={`${product.name} ${index + 1}`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             console.log('Thumbnail image failed to load:', e.target.src)
-                            e.target.src = '/placeholder-product.jpg'
+                            e.target.src = '/placeholder-product.svg'
                           }}
                         />
                       </button>

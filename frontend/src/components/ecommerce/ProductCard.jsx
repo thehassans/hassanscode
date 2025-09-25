@@ -21,7 +21,7 @@ export default function ProductCard({ product, onAddToCart }) {
   }
 
   const getImageUrl = (imagePath) => {
-    if (!imagePath) return '/placeholder-product.jpg'
+    if (!imagePath) return '/placeholder-product.svg'
     return imagePath.startsWith('http') ? imagePath : `${import.meta.env.VITE_API_BASE || 'http://localhost:3000'}${imagePath}`
   }
 
@@ -101,7 +101,7 @@ export default function ProductCard({ product, onAddToCart }) {
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           onError={(e) => {
-            e.target.src = '/placeholder-product.jpg'
+            e.target.src = '/placeholder-product.svg'
           }}
         />
         {product.discount && product.discount > 0 && (
