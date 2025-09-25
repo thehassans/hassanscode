@@ -17,6 +17,7 @@ async function getWA(){
 import ChatAssignment from '../models/ChatAssignment.js'
 import Order from '../models/Order.js'
 import mongoose from 'mongoose'
+import { createNotification } from '../routes/notifications.js';
 
 const router = Router();
 
@@ -63,6 +64,23 @@ router.post('/agents', auth, allowRoles('admin','user','manager'), async (req, r
   }
   const agent = new User({ firstName, lastName, email, phone, password, role: 'agent', createdBy })
   await agent.save()
+  
+  // Create notification for agent creation
+  try {
+    await createNotification({
+      userId: createdBy,
+      type: 'user_created',
+      title: 'New Agent Created',
+      message: `Agent ${firstName} ${lastName} (${email}) has been created`,
+      relatedId: agent._id,
+      relatedType: 'User',
+      triggeredBy: req.user.id,
+      triggeredByRole: req.user.role
+    });
+  } catch (err) {
+    console.error('Failed to create agent notification:', err);
+  }
+  
   // Try to send WhatsApp welcome message (non-blocking)
   ;(async ()=>{
     try{
@@ -355,6 +373,23 @@ router.post('/managers', auth, allowRoles('admin','user'), async (req, res) => {
   const createdBy = req.user?.id
   const manager = new User({ firstName, lastName, email, password, phone, role: 'manager', createdBy, managerPermissions: { canCreateAgents: !!canCreateAgents, canManageProducts: !!canManageProducts, canCreateOrders: !!canCreateOrders } })
   await manager.save()
+  
+  // Create notification for manager creation
+  try {
+    await createNotification({
+      userId: createdBy,
+      type: 'user_created',
+      title: 'New Manager Created',
+      message: `Manager ${firstName} ${lastName} (${email}) has been created with permissions: ${canCreateAgents ? 'Create Agents, ' : ''}${canManageProducts ? 'Manage Products, ' : ''}${canCreateOrders ? 'Create Orders' : ''}`.replace(/, $/, ''),
+      relatedId: manager._id,
+      relatedType: 'User',
+      triggeredBy: req.user.id,
+      triggeredByRole: req.user.role
+    });
+  } catch (err) {
+    console.error('Failed to create manager notification:', err);
+  }
+  
   // Broadcast to workspace for real-time coordination
   try{ const io = getIO(); const ownerId = req.user.id; io.to(`workspace:${ownerId}`).emit('manager.created', { id: String(manager._id) }) }catch{}
   // Try to send WhatsApp welcome message (non-blocking)

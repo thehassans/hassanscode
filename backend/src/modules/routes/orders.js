@@ -4,6 +4,7 @@ import Product from '../models/Product.js'
 import { auth, allowRoles } from '../middleware/auth.js'
 import User from '../models/User.js'
 import { getIO } from '../config/socket.js'
+import { createNotification } from './notifications.js'
 
 const router = express.Router()
 
@@ -137,6 +138,56 @@ router.post('/', auth, allowRoles('admin','user','agent','manager'), async (req,
       }
     }catch(err){ console.warn('WA notify failed:', err?.message || err) }
   }catch(err){ console.warn('Invoice PDF generation failed:', err?.message || err) }
+
+  // Create notification for order submission
+  try {
+    // Determine who should receive the notification
+    let notificationUserId = req.user.id
+    
+    // If order was created by agent or manager, notify the owner (user) as well
+    if (req.user.role === 'agent' || req.user.role === 'manager') {
+      const creator = await User.findById(req.user.id).select('createdBy role').lean()
+      if (creator?.createdBy) {
+        // Notify the owner (user who created this agent/manager)
+        await createNotification({
+          userId: creator.createdBy,
+          type: 'order_created',
+          title: 'New Order Submitted',
+          message: `Order #${doc.invoiceNumber || doc._id} submitted by ${req.user.firstName} ${req.user.lastName} (${req.user.role})`,
+          relatedId: doc._id,
+          relatedType: 'order',
+          triggeredBy: req.user.id,
+          triggeredByRole: req.user.role,
+          metadata: {
+            customerPhone: doc.customerPhone,
+            city: doc.city,
+            total: doc.total,
+            productName: prod?.name
+          }
+        })
+      }
+    }
+    
+    // Always notify the order creator
+    await createNotification({
+      userId: notificationUserId,
+      type: 'order_created',
+      title: 'Order Submitted Successfully',
+      message: `Your order #${doc.invoiceNumber || doc._id} has been submitted successfully`,
+      relatedId: doc._id,
+      relatedType: 'order',
+      triggeredBy: req.user.id,
+      triggeredByRole: req.user.role,
+      metadata: {
+        customerPhone: doc.customerPhone,
+        city: doc.city,
+        total: doc.total,
+        productName: prod?.name
+      }
+    })
+  } catch (notificationError) {
+    console.warn('Failed to create order notification:', notificationError?.message || notificationError)
+  }
 
   res.status(201).json({ message: 'Order submitted', order: doc })
 })

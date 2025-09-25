@@ -14,6 +14,7 @@ export default function UserLayout(){
   const me = JSON.parse(localStorage.getItem('me') || '{}')
   const links = [
     { to: '/user', label: 'Dashboard', icon: '📊' },
+    { to: '/user/notifications', label: 'Notifications', icon: '🔔' },
     {
       label: 'Inbox', icon: '💬',
       children: [

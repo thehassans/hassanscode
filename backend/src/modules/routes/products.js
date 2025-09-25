@@ -5,6 +5,7 @@ import path from 'path'
 import Product from '../models/Product.js'
 import User from '../models/User.js'
 import { auth, allowRoles } from '../middleware/auth.js'
+import { createNotification } from './notifications.js'
 
 const router = express.Router()
 
@@ -64,6 +65,54 @@ router.post('/', auth, allowRoles('admin','user','manager'), upload.any(), async
     createdBy: ownerId,
   })
   await doc.save()
+  
+  // Create notification for product creation
+  try {
+    // If product was created by manager, notify the owner (user) as well
+    if (req.user.role === 'manager') {
+      const creator = await User.findById(req.user.id).select('createdBy role').lean()
+      if (creator?.createdBy) {
+        // Notify the owner (user who created this manager)
+        await createNotification({
+          userId: creator.createdBy,
+          type: 'product_created',
+          title: 'New Product Added',
+          message: `Product "${doc.name}" added by ${req.user.firstName} ${req.user.lastName} (${req.user.role})`,
+          relatedId: doc._id,
+          relatedType: 'product',
+          triggeredBy: req.user.id,
+          triggeredByRole: req.user.role,
+          metadata: {
+            productName: doc.name,
+            price: doc.price,
+            category: doc.category,
+            stockQty: doc.stockQty
+          }
+        })
+      }
+    }
+    
+    // Always notify the product creator
+    await createNotification({
+      userId: ownerId,
+      type: 'product_created',
+      title: 'Product Created Successfully',
+      message: `Your product "${doc.name}" has been created successfully`,
+      relatedId: doc._id,
+      relatedType: 'product',
+      triggeredBy: req.user.id,
+      triggeredByRole: req.user.role,
+      metadata: {
+        productName: doc.name,
+        price: doc.price,
+        category: doc.category,
+        stockQty: doc.stockQty
+      }
+    })
+  } catch (notificationError) {
+    console.warn('Failed to create product notification:', notificationError?.message || notificationError)
+  }
+  
   res.status(201).json({ message: 'Product created', product: doc })
 })
 

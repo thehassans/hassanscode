@@ -29,6 +29,7 @@ import Agents from './pages/user/Agents.jsx'
 import Managers from './pages/user/Managers.jsx'
 import Investors from './pages/user/Investors.jsx'
 import Drivers from './pages/user/Drivers.jsx'
+import Notifications from './pages/user/Notifications.jsx'
 import DriverDashboard from './pages/driver/Dashboard.jsx'
 import DriverPanel from './pages/driver/DriverPanel.jsx'
 import SubmitOrder from './pages/orders/SubmitOrder.jsx'
@@ -185,6 +186,7 @@ export default function App() {
         <Route path="managers" element={<Managers />} />
         <Route path="investors" element={<Investors />} />
         <Route path="drivers" element={<Drivers />} />
+        <Route path="notifications" element={<Notifications />} />
         <Route path="campaigns" element={<Campaign />} />
         <Route path="orders" element={<SubmitOrder />} />
         <Route path="inhouse-products" element={<InhouseProducts />} />
