@@ -30,6 +30,7 @@ import Managers from './pages/user/Managers.jsx';
 import Investors from './pages/user/Investors.jsx';
 import Drivers from './pages/user/Drivers.jsx';
 import DriverDashboard from './pages/driver/Dashboard.jsx';
+import DriverPanel from './pages/driver/DriverPanel.jsx';
 import SubmitOrder from './pages/orders/SubmitOrder.jsx';
 import InhouseProducts from './pages/products/InhouseProducts.jsx';
 import Warehouse from './pages/warehouse/Warehouse.jsx';
@@ -128,6 +129,7 @@ export default function App() {
         }
       >
         <Route index element={<DriverDashboard />} />
+        <Route path="panel" element={<DriverPanel />} />
       </Route>
 
       <Route
