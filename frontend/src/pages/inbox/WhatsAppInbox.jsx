@@ -1629,7 +1629,7 @@ export default function WhatsAppInbox(){
 
   // Mobile headers
   const mobileListHeader = (
-    <div style={{position:'sticky', top:0, zIndex:1200, display:isMobile ? 'flex' : 'none', alignItems:'center', gap:10, height:MOBILE_HDR_H, background:'var(--wa-header)', borderBottom:'1px solid var(--border)', padding:'8px 10px'}}>
+    <div style={{position:'fixed', top:0, left:0, right:0, zIndex:1200, display:isMobile ? 'flex' : 'none', alignItems:'center', gap:10, height:MOBILE_HDR_H, background:'var(--wa-header)', borderBottom:'1px solid var(--border)', padding:'8px 10px'}}>
       <button className="btn secondary" onClick={()=> navigate(-1)} aria-label="Back" title="Back" style={{width:36,height:36,padding:0,display:'grid',placeItems:'center'}}>←</button>
       <div style={{fontWeight:800}}>Chats</div>
       {myRole === 'agent' && (
@@ -1709,7 +1709,7 @@ export default function WhatsAppInbox(){
     return (
       <div className="full-viewport wa-layout wa-wallpaper" style={{ height:'100dvh', width:'100vw', overflow:'hidden' }}>
         {mobileListHeader}
-        <div className="wa-chatlist open" style={{borderRight:'none'}}>
+        <div className="wa-chatlist open" style={{borderRight:'none', paddingTop: MOBILE_HDR_H + 'px'}}>
           {/* New Chat (Mobile) - filters removed */}
           <div style={{position:'sticky', top:0, zIndex:1100, background:'var(--wa-header)', borderBottom:'1px solid var(--border)', padding:'8px 10px', display:'flex', alignItems:'center', justifyContent:'flex-end'}}>
             {myRole === 'user' && (

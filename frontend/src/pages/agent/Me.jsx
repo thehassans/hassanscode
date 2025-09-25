@@ -294,11 +294,11 @@ export default function AgentMe(){
             <div style={{display:'flex', alignItems:'center', gap:12}}>
               <div style={{
                 width:24, height:24, borderRadius:'50%', 
-                backgroundColor: available ? '#10b981' : '#ef4444',
+                backgroundColor: availability === 'available' ? '#10b981' : '#ef4444',
                 display:'flex', alignItems:'center', justifyContent:'center'
               }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="none">
-                  {available ? 
+                  {availability === 'available' ? 
                     <path d="M20 6L9 17l-5-5"/> : 
                     <path d="M18 6L6 18M6 6l12 12"/>
                   }
@@ -306,15 +306,15 @@ export default function AgentMe(){
               </div>
               <div>
                 <div style={{fontWeight:600}}>Availability</div>
-                <div style={{fontSize:12, color:'var(--muted)'}}>{available ? 'Available for chats' : 'Currently offline'}</div>
+                <div style={{fontSize:12, color:'var(--muted)'}}>{availability === 'available' ? 'Available for chats' : 'Currently offline'}</div>
               </div>
             </div>
             <button 
               type="button" 
-              className={`btn small ${available ? 'success' : 'secondary'}`}
-              onClick={() => setAvailable(!available)}
+              className={`btn small ${availability === 'available' ? 'success' : 'secondary'}`}
+              onClick={() => setAvailability(availability === 'available' ? 'offline' : 'available')}
             >
-              {available ? 'Online' : 'Offline'}
+              {availability === 'available' ? 'Online' : 'Offline'}
             </button>
           </div>
 
