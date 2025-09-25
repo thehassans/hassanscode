@@ -9,7 +9,7 @@ const UserSchema = new mongoose.Schema({
   phone: { type: String, default: '' },
   country: { type: String, default: '' },
   city: { type: String, default: '' },
-  role: { type: String, enum: ['admin','user','agent','manager','investor','driver'], default: 'user', index: true },
+  role: { type: String, enum: ['admin','user','agent','manager','investor','driver','customer'], default: 'user', index: true },
   // Agent availability status for assignment visibility and routing
   availability: { type: String, enum: ['available','away','busy','offline'], default: 'available', index: true },
   // For agents/managers/investors created by a user/company (workspace owner)

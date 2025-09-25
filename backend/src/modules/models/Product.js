@@ -18,7 +18,32 @@ const ProductSchema = new mongoose.Schema({
   imagePath: { type: String, default: '' },
   images: [{ type: String }],
   purchasePrice: { type: Number, default: 0 },
-  category: { type: String, enum: ['Skincare','Haircare','Bodycare','Other'], default: 'Other' },
+  category: { 
+    type: String, 
+    enum: [
+      'Skincare', 'Haircare', 'Bodycare', 
+      'Household', 'Kitchen', 'Cleaning', 'Home Decor',
+      'Electronics', 'Clothing', 'Books', 'Sports',
+      'Health', 'Beauty', 'Toys', 'Automotive',
+      'Garden', 'Pet Supplies', 'Office', 'Other'
+    ], 
+    default: 'Other' 
+  },
+  subcategory: { type: String, default: '' },
+  brand: { type: String, default: '' },
+  weight: { type: Number, default: 0 },
+  dimensions: {
+    length: { type: Number, default: 0 },
+    width: { type: Number, default: 0 },
+    height: { type: Number, default: 0 }
+  },
+  tags: [{ type: String }],
+  rating: { type: Number, default: 0, min: 0, max: 5 },
+  reviewCount: { type: Number, default: 0 },
+  featured: { type: Boolean, default: false },
+  onSale: { type: Boolean, default: false },
+  salePrice: { type: Number, default: 0 },
+  sku: { type: String, unique: true, sparse: true },
   madeInCountry: { type: String, default: '' },
   description: { type: String, default: '' },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

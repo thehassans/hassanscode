@@ -42,6 +42,14 @@ import Transactions from './pages/finance/Transactions.jsx'
 import Support from './pages/support/Support.jsx'
 import AgentMe from './pages/agent/Me.jsx'
 
+// E-commerce imports
+import ProductCatalog from './pages/ecommerce/ProductCatalog.jsx'
+import ProductDetail from './pages/ecommerce/ProductDetail.jsx'
+import CustomerLogin from './pages/ecommerce/CustomerLogin.jsx'
+import Register from './pages/ecommerce/Register.jsx'
+import Checkout from './pages/ecommerce/Checkout'
+import AnalyticsDashboard from './components/analytics/AnalyticsDashboard'
+
 import { apiGet } from './api.js'
 
 function RequireAuth({ children }) {
@@ -107,6 +115,15 @@ function RequireRole({ roles = [], children }) {
 export default function App() {
   return (
     <Routes>
+      {/* Public E-commerce Routes */}
+        <Route path="/catalog" element={<ProductCatalog />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/customer-login" element={<CustomerLogin />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/analytics" element={<AnalyticsDashboard />} />
+      
+      {/* Staff/Admin Login */}
       <Route path="/login" element={<UserLogin />} />
 
       <Route
@@ -217,7 +234,7 @@ export default function App() {
         <Route path="support" element={<Support />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/catalog" replace />} />
     </Routes>
   )
 }

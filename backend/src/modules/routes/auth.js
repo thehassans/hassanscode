@@ -32,7 +32,7 @@ router.post('/seed-admin-login', async (req, res) => {
 
 router.post('/login', rateLimit({ windowMs: 60000, max: 20 }), async (req, res) => {
   try{
-    let { email, password } = req.body || {};
+    let { email, password, loginType } = req.body || {};
     const e = String(email || '').trim().toLowerCase();
     const p = String(password || '').trim();
     if (!e || !p) return res.status(400).json({ message: 'Invalid credentials' });
@@ -47,6 +47,11 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 20 }), async (req, res) 
       }catch{}
     }
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+
+    // Check if this is a customer login and user has appropriate role
+    if (loginType === 'customer' && user.role !== 'customer') {
+      return res.status(403).json({ message: 'Please use the staff login portal' });
+    }
 
     let ok = await user.comparePassword(p);
     if (!ok){
@@ -67,6 +72,77 @@ router.post('/login', rateLimit({ windowMs: 60000, max: 20 }), async (req, res) 
   }catch(err){
     try{ console.error('[auth/login] error', err?.message || err) }catch{}
     return res.status(500).json({ message: 'Login failed' })
+  }
+});
+
+// Registration endpoint for customers
+router.post('/register', rateLimit({ windowMs: 60000, max: 10 }), async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, phone, country, role = 'customer' } = req.body || {};
+    
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+    
+    const normalizedEmail = email.trim().toLowerCase();
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(409).json({ message: 'An account with this email already exists' });
+    }
+    
+    // Only allow customer registration through this endpoint
+    if (role !== 'customer') {
+      return res.status(400).json({ message: 'Invalid registration type' });
+    }
+    
+    // Create new user
+    const user = new User({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: normalizedEmail,
+      password,
+      phone: phone?.trim() || '',
+      country: country || 'UAE',
+      role: 'customer'
+    });
+    
+    await user.save();
+    
+    // Generate token for auto-login
+    const token = jwt.sign(
+      { id: user._id, role: user.role, firstName: user.firstName, lastName: user.lastName },
+      SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    return res.status(201).json({
+      message: 'Registration successful',
+      token,
+      user: {
+        id: user._id,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      }
+    });
+  } catch (err) {
+    console.error('[auth/register] error', err?.message || err);
+    return res.status(500).json({ message: 'Registration failed' });
   }
 });
 

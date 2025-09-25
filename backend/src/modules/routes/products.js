@@ -1,61 +1,55 @@
 import express from 'express'
 import multer from 'multer'
-import fs from 'fs'
 import path from 'path'
+import { auth, allowRoles } from '../middleware/auth.js'
 import Product from '../models/Product.js'
 import User from '../models/User.js'
-import { auth, allowRoles } from '../middleware/auth.js'
 import { createNotification } from './notifications.js'
 
 const router = express.Router()
 
-// Ensure uploads directory exists
-const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads')
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true })
-
+// Multer config for image uploads
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const ts = Date.now()
-    const safe = file.originalname.replace(/[^a-zA-Z0-9_.-]/g, '_')
-    cb(null, `${ts}_${safe}`)
+  destination: (req, file, cb) => cb(null, 'uploads/'),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname)
+    const name = path.basename(file.originalname, ext)
+    cb(null, `${name}-${Date.now()}${ext}`)
   }
 })
 const upload = multer({ storage })
 
-// Create product (admin, user, manager with permission)
+// Create product (admin; user; manager with permission)
 router.post('/', auth, allowRoles('admin','user','manager'), upload.any(), async (req, res) => {
-  const { name, price, availableCountries, inStock, stockQty, baseCurrency, purchasePrice, category, madeInCountry, description, stockUAE, stockOman, stockKSA, stockBahrain } = req.body || {}
-  if (!name || price == null) return res.status(400).json({ message: 'Missing required fields' })
-  // Map creator: managers attribute to owner (createdBy of manager)
+  const { name, price, stockQty, purchasePrice, category, madeInCountry, description, stockUAE, stockOman, stockKSA, stockBahrain } = req.body || {}
+  if (!name || price == null) return res.status(400).json({ message: 'Name and price are required' })
+  
   let ownerId = req.user.id
   if (req.user.role === 'manager'){
     const mgr = await User.findById(req.user.id).select('managerPermissions createdBy')
-    if (!mgr || !mgr.managerPermissions?.canManageProducts){
-      return res.status(403).json({ message: 'Manager not allowed to manage products' })
-    }
+    if (!mgr || !mgr.managerPermissions?.canManageProducts){ return res.status(403).json({ message: 'Manager not allowed to manage products' }) }
     ownerId = String(mgr.createdBy || req.user.id)
   }
-  const parsedCountries = Array.isArray(availableCountries) ? availableCountries : (typeof availableCountries === 'string' && availableCountries.length ? availableCountries.split(',') : [])
-  // Gather images (support 'images' array or legacy 'image')
+  
   const files = Array.isArray(req.files) ? req.files : []
   const imageFiles = files.filter(f => f.fieldname === 'images' || f.fieldname === 'image')
   const imagePaths = imageFiles.map(f => `/uploads/${f.filename}`)
-  const stockByCountry = {
-    UAE: stockUAE != null ? Math.max(0, Number(stockUAE)) : 0,
-    Oman: stockOman != null ? Math.max(0, Number(stockOman)) : 0,
-    KSA: stockKSA != null ? Math.max(0, Number(stockKSA)) : 0,
-    Bahrain: stockBahrain != null ? Math.max(0, Number(stockBahrain)) : 0,
-  }
-  const totalQty = (stockByCountry.UAE + stockByCountry.Oman + stockByCountry.KSA + stockByCountry.Bahrain)
+  
+  // per-country stock
+  const sbc = { UAE:0, Oman:0, KSA:0, Bahrain:0 }
+  if (stockUAE != null) sbc.UAE = Math.max(0, Number(stockUAE))
+  if (stockOman != null) sbc.Oman = Math.max(0, Number(stockOman))
+  if (stockKSA != null) sbc.KSA = Math.max(0, Number(stockKSA))
+  if (stockBahrain != null) sbc.Bahrain = Math.max(0, Number(stockBahrain))
+  
+  // if stockQty not provided, sum from per-country
+  let finalStockQty = stockQty != null ? Number(stockQty) : (sbc.UAE + sbc.Oman + sbc.KSA + sbc.Bahrain)
+  
   const doc = new Product({
     name: String(name).trim(),
     price: Number(price),
-    baseCurrency: ['AED','OMR','SAR','BHD'].includes(baseCurrency) ? baseCurrency : 'SAR',
-    availableCountries: parsedCountries,
-    inStock: inStock === 'true' || inStock === true,
-    stockQty: stockQty != null ? Math.max(0, Number(stockQty)) : totalQty,
-    stockByCountry,
+    stockQty: finalStockQty,
+    stockByCountry: sbc,
     imagePath: imagePaths[0] || '',
     images: imagePaths,
     purchasePrice: purchasePrice != null ? Number(purchasePrice) : 0,
@@ -116,10 +110,106 @@ router.post('/', auth, allowRoles('admin','user','manager'), upload.any(), async
   res.status(201).json({ message: 'Product created', product: doc })
 })
 
-// List products (admin => all; agent => all; user => own; manager => owner's)
-router.get('/', auth, allowRoles('admin','user','agent','manager'), async (req, res) => {
+// Get single product by ID (public endpoint)
+router.get('/public/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const product = await Product.findById(id).select('-createdBy -updatedAt -__v')
+    
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' })
+    }
+    
+    res.json({ product })
+  } catch (error) {
+    console.error('Get product error:', error)
+    res.status(500).json({ message: 'Failed to fetch product' })
+  }
+})
+
+// Public products endpoint (no authentication required)
+router.get('/public', async (req, res) => {
+  try {
+    const { category, search, sort, limit = 50, page = 1 } = req.query
+    
+    let query = {}
+    
+    // Category filter
+    if (category && category !== 'all') {
+      query.category = category
+    }
+    
+    // Search filter
+    if (search) {
+      const searchRegex = new RegExp(search, 'i')
+      query.$or = [
+        { name: searchRegex },
+        { description: searchRegex },
+        { brand: searchRegex },
+        { category: searchRegex }
+      ]
+    }
+    
+    // Build sort object
+    let sortObj = { createdAt: -1 } // default: newest first
+    if (sort) {
+      switch (sort) {
+        case 'name':
+          sortObj = { name: 1 }
+          break
+        case 'name-desc':
+          sortObj = { name: -1 }
+          break
+        case 'price':
+          sortObj = { price: 1 }
+          break
+        case 'price-desc':
+          sortObj = { price: -1 }
+          break
+        case 'rating':
+          sortObj = { rating: -1 }
+          break
+        case 'featured':
+          sortObj = { featured: -1, createdAt: -1 }
+          break
+        case 'newest':
+        default:
+          sortObj = { createdAt: -1 }
+          break
+      }
+    }
+    
+    const pageNum = Math.max(1, parseInt(page))
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)))
+    const skip = (pageNum - 1) * limitNum
+    
+    const products = await Product.find(query)
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limitNum)
+      .select('-createdBy -updatedAt -__v')
+    
+    const total = await Product.countDocuments(query)
+    
+    res.json({
+      products,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        pages: Math.ceil(total / limitNum)
+      }
+    })
+  } catch (error) {
+    console.error('Public products error:', error)
+    res.status(500).json({ message: 'Failed to fetch products' })
+  }
+})
+
+// List products (admin => all; agent => all; user => own; manager => owner's; customer => all public)
+router.get('/', auth, allowRoles('admin','user','agent','manager','customer'), async (req, res) => {
   let base = {}
-  if (req.user.role === 'admin' || req.user.role === 'agent') base = {}
+  if (req.user.role === 'admin' || req.user.role === 'agent' || req.user.role === 'customer') base = {}
   else if (req.user.role === 'user') base = { createdBy: req.user.id }
   else if (req.user.role === 'manager'){
     const mgr = await User.findById(req.user.id).select('createdBy')
@@ -143,15 +233,13 @@ router.patch('/:id', auth, allowRoles('admin','user','manager'), upload.any(), a
     }
     if (String(prod.createdBy) !== String(ownerId)) return res.status(403).json({ message: 'Not allowed' })
   }
-  const { name, price, availableCountries, inStock, stockQty, baseCurrency, purchasePrice, category, madeInCountry, description, stockUAE, stockOman, stockKSA, stockBahrain } = req.body || {}
+  const { name, price, stockQty, purchasePrice, category, madeInCountry, description, inStock, stockUAE, stockOman, stockKSA, stockBahrain } = req.body || {}
   if (name != null) prod.name = String(name).trim()
   if (price != null) prod.price = Number(price)
-  if (baseCurrency != null && ['AED','OMR','SAR','BHD'].includes(baseCurrency)) prod.baseCurrency = baseCurrency
-  if (availableCountries != null) prod.availableCountries = Array.isArray(availableCountries) ? availableCountries : (typeof availableCountries === 'string' ? availableCountries.split(',') : [])
-  if (inStock != null) prod.inStock = inStock === 'true' || inStock === true
   if (stockQty != null) prod.stockQty = Math.max(0, Number(stockQty))
   if (purchasePrice != null) prod.purchasePrice = Number(purchasePrice)
-  if (category != null && ['Skincare','Haircare','Bodycare','Other'].includes(category)) prod.category = category
+  if (category != null) prod.category = ['Skincare','Haircare','Bodycare','Other'].includes(category) ? category : 'Other'
+  if (inStock != null) prod.inStock = Boolean(inStock)
   if (madeInCountry != null) prod.madeInCountry = String(madeInCountry)
   if (description != null) prod.description = String(description)
   // per-country stock updates
