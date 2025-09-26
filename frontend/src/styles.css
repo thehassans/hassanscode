@@ -2061,3 +2061,22 @@ a {
     @apply grid gap-3 md:grid-cols-2;
   }
 }
+
+
+/* Desktop sizing for WhatsApp Inbox: fill width, remove gutters */
+@media (min-width: 1024px) {
+  .container.edge-to-edge {
+    overflow-x: hidden;
+  }
+  .container.edge-to-edge .wa-layout {
+    grid-template-columns: 420px minmax(0, 1fr);
+    gap: 0;
+    width: 100%;
+  }
+  .container.edge-to-edge .wa-messages-container {
+    height: 100dvh;
+  }
+  .container.edge-to-edge .wa-messages-list {
+    max-width: none;
+  }
+}
