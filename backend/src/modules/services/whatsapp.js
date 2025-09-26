@@ -152,8 +152,10 @@ async function ensureSock() {
     }
     if (connection === 'open') {
       const rawUserId = sock?.user?.id || null;
+      // Remove device ID suffix (e.g., :4) before normalizing
+      const cleanUserId = rawUserId ? rawUserId.replace(/:\d+@/, '@') : null;
       // Normalize the JID and extract clean phone number
-      const normalizedJid = normalizeJid(rawUserId);
+      const normalizedJid = normalizeJid(cleanUserId);
       const cleanPhone = normalizedJid ? normalizedJid.replace(/[^0-9]/g, '') : '';
       connectedNumber = cleanPhone ? `+${cleanPhone}` : rawUserId;
       

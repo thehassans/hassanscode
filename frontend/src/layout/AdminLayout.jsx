@@ -56,6 +56,7 @@ export default function AdminLayout(){
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/inbox/whatsapp', label: 'Whatsapp Inbox' },
     { to: '/admin/inbox/connect', label: 'Whatsapp Connect' },
+    { to: '/admin/insights', label: 'Insights' },
     { to: '/admin/branding', label: 'Branding' },
   ]
   function doLogout(){

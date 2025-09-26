@@ -3198,7 +3198,6 @@ export default function WhatsAppInbox() {
         ref={photoInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         onChange={onUpload}
         id="wa-photo-input"
@@ -3208,7 +3207,6 @@ export default function WhatsAppInbox() {
         ref={videoInputRef}
         type="file"
         accept="video/*"
-        capture="environment"
         multiple
         onChange={onUpload}
         id="wa-video-input"

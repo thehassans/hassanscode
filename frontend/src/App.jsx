@@ -210,6 +210,7 @@ export default function App() {
         <Route path="warehouses" element={<Warehouse />} />
         <Route path="shipments" element={<Shipments />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="insights" element={<AnalyticsDashboard />} />
         <Route path="expense" element={<Expenses />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="support" element={<Support />} />
