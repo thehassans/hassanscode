@@ -1436,6 +1436,7 @@ a {
   height: 100%;
   background: transparent; /* show wallpaper behind messages */
   position: relative;
+  margin-left: 0 !important;
 }
 
 .wa-messages-list {
