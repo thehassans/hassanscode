@@ -2080,3 +2080,30 @@ a {
     max-width: none;
   }
 }
+
+
+/* Responsive media in chat bubbles */
+.wa-message-bubble img.wa-media-img,
+.wa-message-bubble video.wa-media-video {
+  display: block;
+  max-width: min(100%, 520px);
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.06);
+}
+
+/* Ensure no overflow in the scroll container */
+.wa-messages-list img,
+.wa-messages-list video {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .wa-message-bubble img.wa-media-img,
+  .wa-message-bubble video.wa-media-video {
+    max-width: 100%;
+    border-radius: 8px;
+  }
+}

@@ -442,7 +442,7 @@ export default function WhatsAppInbox() {
             src={url}
             controls
             preload="metadata"
-            style={{ maxWidth: '280px', borderRadius: 6 }}
+            className="wa-media-video"
           />
         ) : (
           <span style={{ opacity: 0.7 }}>[video]</span>
@@ -2124,7 +2124,7 @@ export default function WhatsAppInbox() {
             <img
               src={url}
               alt="image"
-              style={{ maxWidth: '280px', height: 'auto', borderRadius: 6 }}
+              className="wa-media-img"
             />
           </a>
         ) : (
