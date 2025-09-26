@@ -295,6 +295,16 @@ a {
 }
 .container.edge-to-edge {
   padding: 0;
+  margin-left: 0;
+  width: 100%;
+}
+/* Make WhatsApp inbox flush against the sidebar on desktop */
+@media (min-width: 769px) {
+  .container.edge-to-edge > .wa-layout,
+  .container.edge-to-edge > .wa-wallpaper,
+  .container.edge-to-edge .wa-chatlist {
+    margin-left: 0 !important;
+  }
 }
 .header {
   display: flex;
