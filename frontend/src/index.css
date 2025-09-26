@@ -1,0 +1,181 @@
+@import 'tailwindcss';
+
+/* Theme variables */
+:root {
+  --bg: #f0f2f5;
+  --fg: #111b21;
+  --muted: #54656f;
+  --panel: #ffffff;
+  --panel-2: #ffffff;
+  --border: #e2e8f0;
+  --btn: #00a884;
+  --btn-secondary: #e5e7eb;
+  --btn-danger: #dc2626;
+  --input-bg: #ffffff;
+  --input-border: #d1d7db;
+  /* Heading gradient defaults (light theme) */
+  --heading-start: #0f172a; /* slate-900 */
+  --heading-end: #334155; /* slate-700 */
+  /* WhatsApp specific accents */
+  --wa-bg: #f0f2f5;
+  --wa-header: #f0f2f5;
+  --wa-incoming: #ffffff;
+  --wa-outgoing: #d9fdd3;
+  --wa-accent: #00a884;
+  /* Design tokens */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --transition-fast: 150ms ease;
+  --transition-medium: 220ms ease;
+  /* Brand wallpaper intensity */
+  --brand-wallpaper-opacity: 0.045;
+
+  /* Driver Panel specific variables */
+  --driver-card-bg: #ffffff;
+  --driver-card-border: #e5e7eb;
+  --driver-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --driver-contact-btn: #00a884;
+  --driver-contact-btn-hover: #008c6f;
+  --driver-whatsapp: #25d366;
+  --driver-call: #3b82f6;
+  --driver-map: #ef4444;
+  --driver-deliver: #10b981;
+  --driver-cancel: #ef4444;
+  --driver-distance-bg: #f3f4f6;
+  --driver-distance-text: #374151;
+}
+
+/* WhatsApp Inbox: doodle tiled wallpaper (light, subtle) */
+.wa-wallpaper {
+  position: relative;
+}
+.wa-wallpaper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  /* Neutral base so brand mosaic doesn’t bleed through */
+  background-color: var(--wa-bg);
+  /* Refined, original-like WhatsApp doodle tile with more professional motifs */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'><defs><style>.l{fill:none;stroke:%2394a3b8;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.55}</style></defs><rect width='320' height='320' fill='none'/><!-- chat bubble --><path class='l' d='M24 40h120a10 10 0 0 1 10 10v60a10 10 0 0 1-10 10H80l-16 12v-12H34a10 10 0 0 1-10-10V50a10 10 0 0 1 10-10z'/><circle class='l' cx='62' cy='82' r='4'/><circle class='l' cx='82' cy='82' r='4'/><circle class='l' cx='102' cy='82' r='4'/><!-- phone --><path class='l' d='M196 56l20-8 16 20-10 8a68 68 0 0 0 26 26l8-10 20 16-8 20c-34 6-92-52-72-72z'/><!-- camera --><rect class='l' x='26' y='182' width='92' height='62' rx='8'/><circle class='l' cx='72' cy='213' r='16'/><rect class='l' x='46' y='170' width='28' height='12' rx='6'/><!-- video --><rect class='l' x='146' y='188' width='76' height='50' rx='8'/><path class='l' d='M222 206l24-12v50l-24-12z'/><!-- image --><rect class='l' x='236' y='182' width='64' height='48' rx='6'/><circle class='l' cx='254' cy='198' r='6'/><path class='l' d='M242 226l14-14 12 12 10-10 14 12'/><!-- document --><path class='l' d='M170 36h48l22 22v54a10 10 0 0 1-10 10h-60a10 10 0 0 1-10-10V46a10 10 0 0 1 10-10z'/><path class='l' d='M218 36v22h22'/><!-- mic --><rect class='l' x='256' y='48' width='22' height='36' rx='10'/><path class='l' d='M248 84a19 19 0 0 0 38 0'/><path class='l' d='M267 104v16'/><!-- location --><path class='l' d='M56 268a28 28 0 1 1 56 0c0 24-28 48-28 48s-28-24-28-48z'/><circle class='l' cx='84' cy='268' r='10'/><!-- ticks --><path class='l' d='M188 270l12 12 20-28M168 276l12 12 20-28'/><!-- heart, star, bell small accents --><path class='l' d='M134 144c6-12 22-12 28 0 6-12 22-12 28 0-6 22-28 26-28 26s-22-4-28-26z'/><path class='l' d='M286 136l6 12 14 2-10 10 2 14-12-6-12 6 2-14-10-10 14-2 6-12z'/><path class='l' d='M38 136l8-2 4-8 4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6z'/></svg>");
+  background-size: 320px 320px;
+  background-repeat: repeat;
+  opacity: 0.32; /* overall intensity (lighter than before) */
+}
+
+:root[data-theme='dark'] .wa-wallpaper::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'><defs><style>.l{fill:none;stroke:%23a5b4fc;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;opacity:.28}</style></defs><rect width='320' height='320' fill='none'/><path class='l' d='M24 40h120a10 10 0 0 1 10 10v60a10 10 0 0 1-10 10H80l-16 12v-12H34a10 10 0 0 1-10-10V50a10 10 0 0 1 10-10z'/><circle class='l' cx='62' cy='82' r='4'/><circle class='l' cx='82' cy='82' r='4'/><circle class='l' cx='102' cy='82' r='4'/><path class='l' d='M196 56l20-8 16 20-10 8a68 68 0 0 0 26 26l8-10 20 16-8 20c-34 6-92-52-72-72z'/><rect class='l' x='26' y='182' width='92' height='62' rx='8'/><circle class='l' cx='72' cy='213' r='16'/><rect class='l' x='46' y='170' width='28' height='12' rx='6'/><rect class='l' x='146' y='188' width='76' height='50' rx='8'/><path class='l' d='M222 206l24-12v50l-24-12z'/><rect class='l' x='236' y='182' width='64' height='48' rx='6'/><circle class='l' cx='254' cy='198' r='6'/><path class='l' d='M242 226l14-14 12 12 10-10 14 12'/><path class='l' d='M170 36h48l22 22v54a10 10 0 0 1-10 10h-60a10 10 0 0 1-10-10V46a10 10 0 0 1 10-10z'/><path class='l' d='M218 36v22h22'/><rect class='l' x='256' y='48' width='22' height='36' rx='10'/><path class='l' d='M248 84a19 19 0 0 0 38 0'/><path class='l' d='M267 104v16'/><path class='l' d='M56 268a28 28 0 1 1 56 0c0 24-28 48-28 48s-28-24-28-48z'/><circle class='l' cx='84' cy='268' r='10'/><path class='l' d='M188 270l12 12 20-28M168 276l12 12 20-28'/><path class='l' d='M134 144c6-12 22-12 28 0 6-12 22-12 28 0-6 22-28 26-28 26s-22-4-28-26z'/><path class='l' d='M286 136l6 12 14 2-10 10 2 14-12-6-12 6 2-14-10-10 14-2 6-12z'/><path class='l' d='M38 136l8-2 4-8 4 8 8 2-6 6 2 8-8-4-8 4 2-8-6-6z'/></svg>");
+}
+
+/* Ensure WA lists and panes paint over brand mosaic */
+.wa-layout {
+  position: relative;
+  z-index: 1;
+}
+.wa-messages-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Full-screen mosaic wallpaper: assorted commerce/chat motifs distributed across the screen */
+.brand-wallpaper--mosaic {
+  position: relative;
+}
+.brand-wallpaper--mosaic::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-repeat: no-repeat;
+  /* 10 motifs placed in a loose grid to fill full screen */
+  background-image:
+    /* chat bubble */
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 10h32a4 4 0 0 1 4 4v14a4 4 0 0 1-4 4H22l-10 6v-6H8a4 4 0 0 1-4-4V14a4 4 0 0 1 4-4z'/><circle cx='18' cy='21' r='1.5'/><circle cx='24' cy='21' r='1.5'/><circle cx='30' cy='21' r='1.5'/></svg>"),
+    /* cart */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 8h6l4 22h20l4-14H14'/><circle cx='18' cy='40' r='2.5'/><circle cx='34' cy='40' r='2.5'/></svg>"),
+    /* package */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 14l18-8 18 8v20l-18 8-18-8z'/><path d='M24 6v38M6 14l18 9 18-9'/></svg>"),
+    /* storefront */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 18h32l-3-10H11z'/><path d='M10 18v20h28V18'/><path d='M18 28h12v10H18z'/></svg>"),
+    /* credit card */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='10' width='40' height='28' rx='4'/><path d='M4 18h40'/><path d='M10 28h10'/></svg>"),
+    /* truck */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M28 14h8l6 6v14H28zM4 14h24v20H4z'/><circle cx='12' cy='38' r='3'/><circle cx='34' cy='38' r='3'/></svg>"),
+    /* barcode */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 14v20M10 14v20M16 14v20M20 14v20M26 14v20M30 14v20M36 14v20M40 14v20'/></svg>"),
+    /* whatsapp-like glyph */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M24 6a16 16 0 0 0-13.9 23.9L8 42l12.1-2.2A16 16 0 1 0 24 6z'/><path d='M17.4 19.7c.4 1.1 2.2 3.3 4 4.4 1.8 1.1 3 1.6 3.9 1.4.7-.2 1.4-1.2 1.7-1.8l2.6 1.3c-.6 1.5-2.6 3.8-4 4.2-2 .6-4.6-.2-7.6-2.2-3-2-5.6-5.6-6.1-7.8-.3-1.4.6-3.6 2.1-4.6l1.8 3.6c-.6.4-.9.8-.9 1.1z'/></svg>"),
+    /* letter-F badge (to evoke fb) */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='24' cy='24' r='20'/><path d='M26 14h-4a6 6 0 0 0-6 6v2h6v12h6V22h6v-6h-6v-2z'/></svg>"),
+    /* letter-A badge (to evoke an ecommerce giant) */
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='24' cy='24' r='20'/><path d='M16 32l8-16 8 16M20 24h8'/></svg>");
+  background-size: 180px, 160px, 170px, 180px, 160px, 180px, 140px, 160px, 160px, 160px;
+  background-position:
+    left 6% top 10%,
+    left 28% top 22%,
+    left 50% top 12%,
+    left 72% top 28%,
+    right 8% top 12%,
+    left 10% bottom 14%,
+    left 34% bottom 18%,
+    left 58% bottom 10%,
+    right 22% bottom 22%,
+    right 6% bottom 10%;
+  opacity: var(--brand-wallpaper-opacity, 0.045);
+}
+
+:root[data-theme='dark'] .brand-wallpaper--mosaic::before {
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 10h32a4 4 0 0 1 4 4v14a4 4 0 0 1-4 4H22l-10 6v-6H8a4 4 0 0 1-4-4V14a4 4 0 0 1 4-4z'/><circle cx='18' cy='21' r='1.5'/><circle cx='24' cy='21' r='1.5'/><circle cx='30' cy='21' r='1.5'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M4 8h6l4 22h20l4-14H14'/><circle cx='18' cy='40' r='2.5'/><circle cx='34' cy='40' r='2.5'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 14l18-8 18 8v20l-18 8-18-8z'/><path d='M24 6v38M6 14l18 9 18-9'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 18h32l-3-10H11z'/><path d='M10 18v20h28V18'/><path d='M18 28h12v10H18z'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='10' width='40' height='28' rx='4'/><path d='M4 18h40'/><path d='M10 28h10'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M28 14h8l6 6v14H28zM4 14h24v20H4z'/><circle cx='12' cy='38' r='3'/><circle cx='34' cy='38' r='3'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 14v20M10 14v20M16 14v20M20 14v20M26 14v20M30 14v20M36 14v20M40 14v20'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M24 6a16 16 0 0 0-13.9 23.9L8 42l12.1-2.2A16 16 0 1 0 24 6z'/><path d='M17.4 19.7c.4 1.1 2.2 3.3 4 4.4 1.8 1.1 3 1.6 3.9 1.4.7-.2 1.4-1.2 1.7-1.8l2.6 1.3c-.6 1.5-2.6 3.8-4 4.2-2 .6-4.6-.2-7.6-2.2-3-2-5.6-5.6-6.1-7.8-.3-1.4.6-3.6 2.1-4.6l1.8 3.6c-.6.4-.9.8-.9 1.1z'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='24' cy='24' r='20'/><path d='M26 14h-4a6 6 0 0 0-6 6v2h6v12h6V22h6v-6h-6v-2z'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='24' cy='24' r='20'/><path d='M16 32l8-16 8 16M20 24h8'/></svg>");
+}
+
+/* Minimal single-logo variant (clean watermark in one corner) */
+.brand-wallpaper--minimal::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23111b21' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='10' width='44' height='30' rx='4'/><path d='M2 16h44'/><path d='M14 24h10'/><path d='M14 30h20'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6% bottom 8%;
+  background-size: min(42vw, 520px);
+  opacity: var(--brand-wallpaper-opacity, 0.045);
+}
+
+:root[data-theme='dark'] .brand-wallpaper--minimal::before {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none' stroke='%23e2e8f0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='10' width='44' height='30' rx='4'/><path d='M2 16h44'/><path d='M14 24h10'/><path d='M14 30h20'/></svg>");
+}
+
+/* Animated gradient backdrop (used on login screen) */
+.animated-gradient {
+  position: relative;
+  background: linear-gradient(-45deg, #0ea5e9, #8b5cf6, #f43f5e, #06b6d4);
+  background-size: 400% 400%;
+  animation: gradientShift 18s ease infinite;
+}
+
+/* ... rest of the CSS copied from styles.css ... */
+
+/* === Overrides: remove WA inbox wallpaper and set solid background === */
+.wa-wallpaper::before {
+  display: none !important;
+  background: none !important;
+}
+.wa-messages-container {
+  background: var(--wa-bg) !important;
+}
