@@ -2884,15 +2884,8 @@ export default function WhatsAppInbox() {
           </>
         )}
       </div>
-          flexDirection: 'column',
-          minHeight: '100dvh',
-          marginLeft: isMobile ? 0 : 360,
-        }}
-      >
-        {mobileChatHeader}
-        {!activeJid ? (
-          <div
-            style={{
+
+      {/* Hidden file inputs for media upload */}
               display: 'grid',
               gap: 12,
               justifyItems: 'center',
