@@ -151,13 +151,20 @@ async function ensureSock() {
       } catch (e) { console.error('[wa] QR code generation failed:', e); }
     }
     if (connection === 'open') {
-      connectedNumber = sock?.user?.id || null;
+      const rawUserId = sock?.user?.id || null;
+      // Normalize the JID and extract clean phone number
+      const normalizedJid = normalizeJid(rawUserId);
+      const cleanPhone = normalizedJid ? normalizedJid.replace(/[^0-9]/g, '') : '';
+      connectedNumber = cleanPhone ? `+${cleanPhone}` : rawUserId;
+      
       io.emit('status', { connected: true, number: connectedNumber });
       // Record session history (active)
       try{
         const WaSessionMod = await import('../models/WaSession.js')
         const WaSession = WaSessionMod.default || WaSessionMod
-        const phone = String(connectedNumber||'').replace(/[^0-9]/g,'')
+        const phone = cleanPhone
+        // Deactivate all other sessions
+        await WaSession.updateMany({ active: true }, { $set: { active: false, disconnectedAt: new Date() } })
         // Create a new session entry for history
         await WaSession.create({ number: connectedNumber, phone, connectedAt: new Date(), active: true, disconnectedAt: null })
       }catch(e){ try{ console.warn('[wa] session log (open) failed', e?.message||e) }catch{} }
@@ -172,7 +179,7 @@ async function ensureSock() {
         if (!shouldReconnect && connectedNumber){
           const WaSessionMod = await import('../models/WaSession.js')
           const WaSession = WaSessionMod.default || WaSessionMod
-          const phone = String(connectedNumber||'').replace(/[^0-9]/g,'')
+          const phone = String(connectedNumber||'').replace(/[^+0-9]/g,'').replace(/^\+/, '')
           await WaSession.updateMany({ phone, active: true }, { $set: { active: false, disconnectedAt: new Date() } })
         }
       }catch(e){ try{ console.warn('[wa] session log (close) failed', e?.message||e) }catch{} }
@@ -437,7 +444,7 @@ async function logout() {
     if (num){
       const WaSessionMod = await import('../models/WaSession.js')
       const WaSession = WaSessionMod.default || WaSessionMod
-      const phone = String(num||'').replace(/[^0-9]/g,'')
+      const phone = String(num||'').replace(/[^+0-9]/g,'').replace(/^\+/, '')
       await WaSession.updateMany({ phone, active: true }, { $set: { active: false, disconnectedAt: new Date() } })
     }
   }catch(e){ try{ console.warn('[wa] session log (logout) failed', e?.message||e) }catch{} }
