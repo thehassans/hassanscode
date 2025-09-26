@@ -2602,288 +2602,202 @@ export default function WhatsAppInbox() {
 
   // Chat screen (mobile) or split (desktop)
   return (
-    <div className="wa-layout">
+    <div className="wa-layout wa-wallpaper">
       {/* Left: Chats List (Desktop) */}
-      <div className="wa-chatlist" style={{ display: isMobile ? 'none' : 'flex' }}>
-        {/* Header with avatar and actions */}
-        <div className="wa-chatlist-header">
-          <Avatar name="You" />
-          <div className="wa-chat-actions">
-            <button className="wa-action-btn" title="New chat">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.005 3.175H4.674C3.642 3.175 3 3.789 3 4.821V21.02l3.544-3.514h12.461c1.033 0 2.064-1.06 2.064-2.093V4.821c-.001-1.032-1.032-1.646-2.064-1.646zm-4.989 9.869H7.041V11.1h6.975v1.944zm3-4H7.041V7.1h9.975v1.944z"/>
-              </svg>
-            </button>
-            <button className="wa-action-btn" title="Menu">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 7a2 2 0 1 0-.001-4.001A2 2 0 0 0 12 7zm0 2a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 9zm0 6a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 15z"/>
-              </svg>
-            </button>
+      <div className="wa-chatlist" style={{ display: isMobile ? 'none' : 'block' }}>
+        {/* Filters + New Chat (Desktop) */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            background: 'var(--wa-header)',
+            borderBottom: '1px solid var(--border)',
+            padding: '8px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {['all', 'unread', 'read'].map((k) => (
+              <button
+                key={k}
+                className={`btn small ${chatFilter === k ? 'success' : 'secondary'}`}
+                onClick={() => setChatFilter(k)}
+                title={k[0].toUpperCase() + k.slice(1)}
+                aria-label={k}
+              >
+                {k === 'all' && <AllIcon />}
+                {k === 'unread' && <UnreadIcon />}
+                {k === 'read' && <ReadIcon />}
+              </button>
+            ))}
           </div>
-        </div>
-
-        {/* Search */}
-        <div className="wa-search-container">
-          <div className="wa-search-wrapper">
-            <div className="wa-search-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"/>
-              </svg>
-            </div>
-            <input 
-              className="wa-search-input" 
-              placeholder="Search or start new chat"
-              type="text"
-            />
-          </div>
-        </div>
-
-        {/* Chats list */}
-        <div style={{ flex: 1, overflow: 'auto' }}>
-          {filteredChats.length === 0 ? (
-            <div
-              style={{
-                padding: 40,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                textAlign: 'center',
-                gap: 16,
-              }}
-            >
-              <div style={{ fontSize: 48, opacity: 0.5 }}>💬</div>
-              <div style={{ fontWeight: 400, color: '#667781' }}>No chats yet</div>
-              <button className="wa-composer-btn" onClick={loadChats} style={{ marginTop: 8 }}>
-                Refresh
+          {myRole === 'user' && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                className="btn small"
+                onClick={() => setShowNewChat((s) => !s)}
+                title="New Chat"
+                aria-label="New Chat"
+              >
+                <PlusIcon />
+              </button>
+              <button
+                className={`btn small ${deleteMode ? 'danger' : 'secondary'}`}
+                onClick={() => setDeleteMode((m) => !m)}
+                title={deleteMode ? 'Done' : 'Delete Mode'}
+                aria-label={deleteMode ? 'Done' : 'Delete Mode'}
+              >
+                {deleteMode ? <DoneIcon /> : <TrashIcon />}
               </button>
             </div>
-          ) : (
-            filteredChats.map((c) => {
-              const country = countryNameFromJid(c.id)
-              const label = c.name ? c.name : formatJid(c.id)
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    const qs = new URLSearchParams(location.search)
-                    qs.set('jid', c.id)
-                    navigate(`${location.pathname}?${qs.toString()}`, { replace: false })
-                  }}
-                  className={`wa-chat-item ${activeJid === c.id ? 'active' : ''}`}
-                >
-                  <Avatar name={c.name || formatJid(c.id)} />
-                  <div className="wa-chat-preview">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div className="wa-chat-name">
-                        {label}
-                      </div>
-                      <div className="wa-chat-time">
-                        {c.lastTs
-                          ? new Date(c.lastTs).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : ''}
-                      </div>
-                    </div>
-                    <div className="wa-chat-preview-text">
-                      {c.preview || 'No messages yet'}
-                    </div>
-                  </div>
-                  {c.unread || (typeof c.unreadCount === 'number' && c.unreadCount > 0) ? (
-                    <div
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: '50%',
-                        background: '#00a884',
-                        color: 'white',
-                        fontSize: 12,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 500,
-                        position: 'absolute',
-                        right: 16,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                      }}
-                    >
-                      {typeof c.unreadCount === 'number' && c.unreadCount > 0 ? c.unreadCount : ''}
-                    </div>
-                  ) : null}
-                </div>
-              )
-            })
           )}
         </div>
+        {showNewChat && (
+          <div
+            style={{
+              padding: '8px 12px',
+              borderBottom: '1px solid var(--border)',
+              display: 'grid',
+              gridTemplateColumns: '1fr auto auto',
+              gap: 6,
+            }}
+          >
+            <input
+              className="input"
+              value={newChatPhone}
+              onChange={(e) => setNewChatPhone(e.target.value)}
+              placeholder="Enter phone e.g. 923001234567"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') createNewChat()
+              }}
+            />
+            <button className="btn small" onClick={createNewChat}>
+              Start
+            </button>
+            <button
+              className="btn secondary small"
+              onClick={() => {
+                setShowNewChat(false)
+                setNewChatPhone('')
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        {filteredChats.length === 0 ? (
+          <div
+            style={{
+              padding: 16,
+              display: 'grid',
+              gap: 10,
+              justifyItems: 'center',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 28 }}>📭</div>
+            <div style={{ fontWeight: 700 }}>No chats yet</div>
+            <button className="btn secondary" onClick={loadChats} style={{ marginTop: 4 }}>
+              Refresh
+            </button>
+          </div>
+        ) : (
+          filteredChats.map((c) => {
+            const country = countryNameFromJid(c.id)
+            const label = c.name ? c.name : formatJid(c.id)
+            return (
+              <div
+                key={c.id}
+                onClick={() => {
+                  const qs = new URLSearchParams(location.search)
+                  qs.set('jid', c.id)
+                  navigate(`${location.pathname}?${qs.toString()}`, { replace: false })
+                }}
+                className={`wa-chat-item ${activeJid === c.id ? 'active' : ''}`}
+              >
+                <Avatar name={c.name || formatJid(c.id)} />
+                <div className="wa-chat-preview">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <div className="wa-chat-name">
+                      {country && (
+                        <span
+                          className="helper"
+                          style={{
+                            fontSize: 11,
+                            marginRight: 6,
+                            opacity: 0.9,
+                            padding: '2px 6px',
+                            border: '1px solid var(--border)',
+                            borderRadius: 999,
+                          }}
+                        >
+                          {country}
+                        </span>
+                      )}
+                      {label}
+                    </div>
+                    <div className="helper" style={{ fontSize: 12 }}>
+                      {c.lastTs
+                        ? new Date(c.lastTs).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : ''}
+                    </div>
+                  </div>
+                  <div
+                    className="helper"
+                    style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {c.preview || ''}
+                  </div>
+                  {myRole !== 'agent' && c.owner?.name && (
+                    <div className="helper" style={{ fontSize: 11 }}>
+                      Assigned: {c.owner.name}
+                    </div>
+                  )}
+                </div>
+                {myRole === 'user' && deleteMode && (
+                  <div style={{ marginLeft: 'auto' }}>
+                    <button
+                      className="btn danger small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        deleteChat(c.id)
+                      }}
+                      disabled={deletingJid === c.id}
+                      title="Delete chat"
+                      aria-label="Delete chat"
+                    >
+                      {deletingJid === c.id ? <span className="spinner" /> : <TrashIcon />}
+                    </button>
+                  </div>
+                )}
+                {c.unread || (typeof c.unreadCount === 'number' && c.unreadCount > 0) ? (
+                  <div
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 999,
+                      background: 'var(--wa-accent)',
+                    }}
+                  />
+                ) : null}
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* Right: Active Chat */}
-      <div className="wa-messages-container">
-        {!activeJid ? (
-          <div className="wa-empty-chat">
-            <div className="wa-empty-chat-icon">
-              <svg viewBox="0 0 303 172" width="360" height="195">
-                <defs>
-                  <linearGradient id="a" x1="50%" x2="50%" y1="0%" y2="100%">
-                    <stop offset="0%" stopColor="#f9f9f9"/>
-                    <stop offset="100%" stopColor="#e9e9e9"/>
-                  </linearGradient>
-                </defs>
-                <g fill="none" fillRule="evenodd">
-                  <path fill="url(#a)" d="M229.38 158.73H73.62c-6.02 0-10.9-4.88-10.9-10.9V23.17c0-6.02 4.88-10.9 10.9-10.9h155.76c6.02 0 10.9 4.88 10.9 10.9v124.66c0 6.02-4.88 10.9-10.9 10.9z"/>
-                  <path fill="#f2f2f2" d="M229.38 12.27H73.62c-6.02 0-10.9 4.88-10.9 10.9v124.66c0 6.02 4.88 10.9 10.9 10.9h155.76c6.02 0 10.9-4.88 10.9-10.9V23.17c0-6.02-4.88-10.9-10.9-10.9z"/>
-                  <path fill="#e6e6e6" d="M87.12 51.56h129.26c2.07 0 3.75-1.68 3.75-3.75s-1.68-3.75-3.75-3.75H87.12c-2.07 0-3.75 1.68-3.75 3.75s1.68 3.75 3.75 3.75zm0 25.13h129.26c2.07 0 3.75-1.68 3.75-3.75s-1.68-3.75-3.75-3.75H87.12c-2.07 0-3.75 1.68-3.75 3.75s1.68 3.75 3.75 3.75zm0 25.14h129.26c2.07 0 3.75-1.68 3.75-3.75s-1.68-3.75-3.75-3.75H87.12c-2.07 0-3.75 1.68-3.75 3.75s1.68 3.75 3.75 3.75zm0 25.13h129.26c2.07 0 3.75-1.68 3.75-3.75s-1.68-3.75-3.75-3.75H87.12c-2.07 0-3.75 1.68-3.75 3.75s1.68 3.75 3.75 3.75z"/>
-                </g>
-              </svg>
-            </div>
-            <h1>WhatsApp Web</h1>
-            <p>Send and receive messages without keeping your phone online.<br/>Use WhatsApp on up to 4 linked devices and 1 phone at the same time.</p>
-          </div>
-        ) : (
-          <>
-            {/* Desktop Header */}
-            <div className="wa-chat-header" style={{ display: isMobile ? 'none' : 'flex' }}>
-              <Avatar name={activeChat?.name || formatJid(activeJid)} />
-              <div className="wa-chat-header-info">
-                <div className="wa-chat-header-name">{activeChat?.name || formatJid(activeJid)}</div>
-                <div className="wa-chat-header-status">
-                  {activeChat?.owner?.name ? `Assigned: ${activeChat.owner.name}` : 'Click here for contact info'}
-                </div>
-              </div>
-              <div className="wa-chat-actions">
-                <button className="wa-action-btn" title="Search">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"/>
-                  </svg>
-                </button>
-                <button className="wa-action-btn" title="Menu">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 7a2 2 0 1 0-.001-4.001A2 2 0 0 0 12 7zm0 2a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 9zm0 6a2 2 0 1 0-.001 3.999A2 2 0 0 0 12 15z"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div
-              className="wa-messages-list"
-              ref={listRef}
-              style={{
-                paddingTop: isMobile ? MOBILE_HDR_H : 0,
-              }}
-            >
-              {hasMore && (
-                <div style={{ textAlign: 'center', padding: '12px 0' }}>
-                  <button className="wa-composer-btn" onClick={loadEarlier} disabled={loadingMore}>
-                    {loadingMore ? 'Loading...' : 'Load Earlier'}
-                  </button>
-                </div>
-              )}
-              {messages.map((m, idx) => {
-                const isMe = m.key?.fromMe
-                const content = unwrapMessage(m.message)
-                const uniqueKey = `${m?.key?.id || 'k'}-${m?.messageTimestamp || 't'}-${idx}`
-                return (
-                  <div key={uniqueKey} className="wa-message-group">
-                    <div className={`wa-message-bubble ${isMe ? 'me' : 'them'}`}>
-                      {content?.conversation ? (
-                        <div>{content.conversation}</div>
-                      ) : content?.extendedTextMessage ? (
-                        <div>{content.extendedTextMessage.text}</div>
-                      ) : content?.imageMessage ? (
-                        <ImageBubble
-                          jid={activeJid}
-                          msg={m}
-                          content={content}
-                          ensureMediaUrl={ensureMediaUrl}
-                        />
-                      ) : content?.videoMessage ? (
-                        <VideoBubble
-                          jid={activeJid}
-                          msg={m}
-                          content={content}
-                          ensureMediaUrl={ensureMediaUrl}
-                        />
-                      ) : content?.audioMessage ? (
-                        <AudioBubble
-                          jid={activeJid}
-                          msg={m}
-                          content={content}
-                          ensureMediaUrl={ensureMediaUrl}
-                        />
-                      ) : content?.documentMessage ? (
-                        <DocumentBubble
-                          jid={activeJid}
-                          msg={m}
-                          content={content}
-                          ensureMediaUrl={ensureMediaUrl}
-                        />
-                      ) : content?.locationMessage ? (
-                        <LocationBubble content={content} />
-                      ) : content?.protocolMessage ? (
-                        <div style={{ opacity: 0.7, fontStyle: 'italic' }}>[system message]</div>
-                      ) : (
-                        <div style={{ opacity: 0.7, fontStyle: 'italic' }}>
-                          [Unsupported message type]
-                        </div>
-                      )}
-                      <div className="wa-message-meta">
-                        {fmtTime(m.messageTimestamp)}
-                        <Ticks isMe={isMe} status={m.status} />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-              <div ref={endRef} />
-            </div>
-
-            {/* Composer */}
-            <div className="wa-composer">
-              <button className="wa-composer-btn" title="Emoji">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9.153 11.603c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zm-3.204 1.362c-.026-.307-.131 5.218 6.063 5.551 6.066-.25 6.066-5.551 6.066-5.551-6.078 1.416-12.129 0-12.129 0zm11.363-1.362c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962zm-7.312 1.362c.795 0 1.439-.879 1.439-1.962s-.644-1.962-1.439-1.962-1.439.879-1.439 1.962.644 1.962 1.439 1.962z"/>
-                </svg>
-              </button>
-              <button className="wa-composer-btn" title="Attach">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M1.816 15.556v.002c0 1.502.584 2.912 1.646 3.972s2.472 1.647 3.974 1.647a5.58 5.58 0 0 0 3.972-1.645l9.547-9.548c.769-.768 1.147-1.767 1.058-2.817-.079-.968-.548-1.927-1.319-2.698-.789-.789-1.561-1.212-2.655-1.212-1.11 0-2.184.454-2.998 1.268L6.49 12.074v.002c-.696.695-.931 1.718-.589 2.589.342.871 1.059 1.425 1.81 1.425.3 0 .577-.06.819-.169a.902.902 0 0 1 .06-.022c.215-.079.411-.192.572-.353l5.916-5.917a.81.81 0 0 1 1.147 0 .81.81 0 0 1 0 1.147l-5.916 5.917a3.09 3.09 0 0 1-.944.681 2.91 2.91 0 0 1-1.354.22c-1.49 0-2.81-.915-3.337-2.316-.527-1.401-.131-3.005.998-4.134L10.264 4.06a4.417 4.417 0 0 1 6.25 0c.85.85 1.197 1.997 1.259 3.169.061 1.172-.354 2.347-1.259 3.252l-9.547 9.548a4.005 4.005 0 0 1-2.84 1.176c-1.073 0-2.084-.418-2.84-1.176a4.005 4.005 0 0 1-1.176-2.84c0-1.073.418-2.084 1.176-2.84l7.652-7.652a.81.81 0 0 1 1.147 0 .81.81 0 0 1 0 1.147L1.816 15.556z"/>
-                </svg>
-              </button>
-              <textarea
-                ref={inputRef}
-                className="wa-composer-input"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    send()
-                  }
-                }}
-                placeholder="Type a message"
-                rows={1}
-                style={{ resize: 'none' }}
-              />
-              {text.trim() ? (
-                <button className="wa-composer-btn send" onClick={send} title="Send">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M1.101 21.757 23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"/>
-                  </svg>
-                </button>
-              ) : (
-                <button className="wa-composer-btn" title="Voice message">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M11.999 14.942c2.001 0 3.531-1.53 3.531-3.531V4.35c0-2.001-1.53-3.531-3.531-3.531S8.469 2.35 8.469 4.35v7.061c0 2.001 1.53 3.531 3.53 3.531zm6.238-3.53c0 3.531-2.942 6.002-6.237 6.002s-6.237-2.471-6.237-6.002H3.761c0 4.001 3.178 7.297 7.061 7.885v3.884h2.354v-3.884c3.884-.588 7.061-3.884 7.061-7.885h-2.001z"/>
-                  </svg>
-                </button>
-              )}
-            </div>
-          </>
-        )}
-      </div>
+      <div
+        className="wa-messages-container"
+        style={{
+          display: 'flex',
           flexDirection: 'column',
           minHeight: '100dvh',
           marginLeft: isMobile ? 0 : 360,
