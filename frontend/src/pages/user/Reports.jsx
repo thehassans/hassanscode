@@ -5,23 +5,63 @@ export default function Reports(){
   const [range, setRange] = useState('7d') // 7d | 30d | 90d
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState(null)
+  const [countryData, setCountryData] = useState([])
   const ranges = [
     { k:'7d', label:'Last 7 Days' },
     { k:'30d', label:'Last 30 Days' },
     { k:'90d', label:'Last 90 Days' },
   ]
 
+  const countryCurrencies = {
+    'AE': 'AED',
+    'OM': 'OMR',
+    'SA': 'SAR',
+    'BH': 'BHD',
+    'SE': 'SEK'
+  };
+
+  const conversionRatesFromSAR = {
+    'SAR': 1,
+    'AED': 0.98,
+    'OMR': 0.103,
+    'BHD': 0.1,
+    'SEK': 2.52
+  };
+
+  const formatCurrency = (amount, currency = 'SAR') => {
+    const rate = conversionRatesFromSAR[currency] || 1;
+    const convertedAmount = amount * rate;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(convertedAmount)
+  }
+
   async function load(r=range){
     setLoading(true)
     try{
       const res = await apiGet(`/api/orders/analytics/summary?range=${encodeURIComponent(r)}`)
       setData(res)
+      const start = new Date(Date.now() - getDays(r) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const end = new Date().toISOString().split('T')[0]
+      const countryRes = await apiGet(`/api/analytics/countries?start=${start}&end=${end}`)
+      setCountryData(countryRes || [])
     }catch(err){
       console.error('Failed to load reports', err)
     }finally{
       setLoading(false)
     }
   }
+
+  function getDays(r) {
+    switch(r) {
+      case '7d': return 7;
+      case '30d': return 30;
+      case '90d': return 90;
+      default: return 7;
+    }
+  }
+
   useEffect(()=>{ load('7d') },[])
   useEffect(()=>{ if (range) load(range) },[range])
 
@@ -96,6 +136,32 @@ export default function Reports(){
             </tbody>
           </table>
         </div>
+        {/* Country Performance */}
+        <div className="card" style={{display:'grid', gap:12}}>
+          <div className="card-title">Country Performance</div>
+          <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
+            <thead>
+              <tr>
+                <th style={{textAlign:'left', padding:'10px 12px'}}>Country</th>
+                <th style={{textAlign:'right', padding:'10px 12px'}}>Revenue</th>
+                <th style={{textAlign:'right', padding:'10px 12px'}}>Orders</th>
+                <th style={{textAlign:'right', padding:'10px 12px'}}>Avg Order Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {countryData.map((country, index) => (
+                <tr key={index}>
+                  <td style={{padding:'10px 12px'}}>{country.country}</td>
+                  <td style={{padding:'10px 12px', textAlign:'right'}}>{formatCurrency(country.totalRevenue, countryCurrencies[country.country] || 'SAR')}</td>
+                  <td style={{padding:'10px 12px', textAlign:'right'}}>{country.totalOrders}</td>
+                  <td style={{padding:'10px 12px', textAlign:'right'}}>{formatCurrency(country.avgOrderValue, countryCurrencies[country.country] || 'SAR')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {countryData.length === 0 && <div>No country data available</div>}
+        </div>
+
       </div>
     </div>
   )
