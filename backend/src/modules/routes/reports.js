@@ -1,112 +1,127 @@
-import express from 'express'
-const router = express.Router()
-import User from '../models/User.js'
-import Order from '../models/Order.js'
-import Product from '../models/Product.js'
-import { auth, allowRoles } from '../middleware/auth.js'
-import mongoose from 'mongoose'
+import express from "express";
+const router = express.Router();
+import User from "../models/User.js";
+import Order from "../models/Order.js";
+import Product from "../models/Product.js";
+import Expense from "../models/Expense.js";
+import { auth, allowRoles } from "../middleware/auth.js";
+import mongoose from "mongoose";
 
 // Helper function to calculate performance rating
 const calculatePerformance = (metrics) => {
-  const { completionRate, avgRating, totalOrders, revenue } = metrics
-  
-  let score = 0
-  
+  const { completionRate, avgRating, totalOrders, revenue } = metrics;
+
+  let score = 0;
+
   // Completion rate (40% weight)
-  if (completionRate >= 95) score += 40
-  else if (completionRate >= 90) score += 35
-  else if (completionRate >= 80) score += 30
-  else if (completionRate >= 70) score += 20
-  else score += 10
-  
+  if (completionRate >= 95) score += 40;
+  else if (completionRate >= 90) score += 35;
+  else if (completionRate >= 80) score += 30;
+  else if (completionRate >= 70) score += 20;
+  else score += 10;
+
   // Average rating (30% weight)
-  if (avgRating >= 4.5) score += 30
-  else if (avgRating >= 4.0) score += 25
-  else if (avgRating >= 3.5) score += 20
-  else if (avgRating >= 3.0) score += 15
-  else score += 5
-  
+  if (avgRating >= 4.5) score += 30;
+  else if (avgRating >= 4.0) score += 25;
+  else if (avgRating >= 3.5) score += 20;
+  else if (avgRating >= 3.0) score += 15;
+  else score += 5;
+
   // Volume (20% weight)
-  if (totalOrders >= 100) score += 20
-  else if (totalOrders >= 50) score += 15
-  else if (totalOrders >= 20) score += 10
-  else if (totalOrders >= 10) score += 5
-  
+  if (totalOrders >= 100) score += 20;
+  else if (totalOrders >= 50) score += 15;
+  else if (totalOrders >= 20) score += 10;
+  else if (totalOrders >= 10) score += 5;
+
   // Revenue (10% weight)
-  if (revenue >= 10000) score += 10
-  else if (revenue >= 5000) score += 8
-  else if (revenue >= 2000) score += 6
-  else if (revenue >= 1000) score += 4
-  else if (revenue >= 500) score += 2
-  
-  if (score >= 85) return 'excellent'
-  else if (score >= 70) return 'good'
-  else if (score >= 50) return 'average'
-  else return 'poor'
-}
+  if (revenue >= 10000) score += 10;
+  else if (revenue >= 5000) score += 8;
+  else if (revenue >= 2000) score += 6;
+  else if (revenue >= 1000) score += 4;
+  else if (revenue >= 500) score += 2;
+
+  if (score >= 85) return "excellent";
+  else if (score >= 70) return "good";
+  else if (score >= 50) return "average";
+  else return "poor";
+};
 
 // Helper function to get date range
-const getDateRange = (period = '30d') => {
-  const end = new Date()
-  const start = new Date()
-  
+const getDateRange = (period = "30d") => {
+  const end = new Date();
+  const start = new Date();
+
   switch (period) {
-    case '7d':
-      start.setDate(end.getDate() - 7)
-      break
-    case '30d':
-      start.setDate(end.getDate() - 30)
-      break
-    case '90d':
-      start.setDate(end.getDate() - 90)
-      break
-    case '1y':
-      start.setFullYear(end.getFullYear() - 1)
-      break
+    case "7d":
+      start.setDate(end.getDate() - 7);
+      break;
+    case "30d":
+      start.setDate(end.getDate() - 30);
+      break;
+    case "90d":
+      start.setDate(end.getDate() - 90);
+      break;
+    case "1y":
+      start.setFullYear(end.getFullYear() - 1);
+      break;
     default:
-      start.setDate(end.getDate() - 30)
+      start.setDate(end.getDate() - 30);
   }
-  
-  return { start, end }
-}
+
+  return { start, end };
+};
 
 // Overview Report
-router.get('/overview', auth, async (req, res) => {
+router.get("/overview", auth, async (req, res) => {
   try {
-    const { period = '30d' } = req.query
-    const { start, end } = getDateRange(period)
-    
+    const { period = "30d" } = req.query;
+    const { start, end } = getDateRange(period);
+
     // Check permissions
-    if (!['admin', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' })
+    if (!["admin", "manager"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     // Get total counts
-    const [totalUsers, totalAgents, totalDrivers, totalInvestors] = await Promise.all([
-      User.countDocuments({ createdAt: { $gte: start, $lte: end } }),
-      User.countDocuments({ role: 'agent', createdAt: { $gte: start, $lte: end } }),
-      User.countDocuments({ role: 'driver', createdAt: { $gte: start, $lte: end } }),
-      User.countDocuments({ role: 'investor', createdAt: { $gte: start, $lte: end } })
-    ])
+    const [totalUsers, totalAgents, totalDrivers, totalInvestors] =
+      await Promise.all([
+        User.countDocuments({ createdAt: { $gte: start, $lte: end } }),
+        User.countDocuments({
+          role: "agent",
+          createdAt: { $gte: start, $lte: end },
+        }),
+        User.countDocuments({
+          role: "driver",
+          createdAt: { $gte: start, $lte: end },
+        }),
+        User.countDocuments({
+          role: "investor",
+          createdAt: { $gte: start, $lte: end },
+        }),
+      ]);
 
     // Get order statistics
     const orderStats = await Order.aggregate([
       {
         $match: {
-          createdAt: { $gte: start, $lte: end }
-        }
+          createdAt: { $gte: start, $lte: end },
+        },
       },
       {
         $group: {
           _id: null,
           totalOrders: { $sum: 1 },
-          totalRevenue: { $sum: '$totalAmount' },
-          avgOrderValue: { $avg: '$totalAmount' }
-        }
-      }
-    ])
+          totalRevenue: { $sum: "$totalAmount" },
+          avgOrderValue: { $avg: "$totalAmount" },
+        },
+      },
+    ]);
 
-    const stats = orderStats[0] || { totalOrders: 0, totalRevenue: 0, avgOrderValue: 0 }
+    const stats = orderStats[0] || {
+      totalOrders: 0,
+      totalRevenue: 0,
+      avgOrderValue: 0,
+    };
 
     res.json({
       totalUsers,
@@ -117,71 +132,73 @@ router.get('/overview', auth, async (req, res) => {
       totalRevenue: stats.totalRevenue,
       avgOrderValue: stats.avgOrderValue,
       period,
-      dateRange: { start, end }
-    })
+      dateRange: { start, end },
+    });
   } catch (error) {
-    console.error('Overview report error:', error)
-    res.status(500).json({ message: 'Server error', error: error.message })
+    console.error("Overview report error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
 // Agent Performance Report
-router.get('/agents', auth, async (req, res) => {
+router.get("/agents", auth, async (req, res) => {
   try {
-    const { period = '30d', limit = 50 } = req.query
-    const { start, end } = getDateRange(period)
-    
+    const { period = "30d", limit = 50 } = req.query;
+    const { start, end } = getDateRange(period);
+
     // Check permissions
-    if (!['admin', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' })
+    if (!["admin", "manager"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     const agents = await User.aggregate([
       {
         $match: {
-          role: 'agent',
-          createdAt: { $gte: start, $lte: end }
-        }
+          role: "agent",
+          createdAt: { $gte: start, $lte: end },
+        },
       },
       {
         $lookup: {
-          from: 'orders',
-          let: { agentId: '$_id' },
+          from: "orders",
+          let: { agentId: "$_id" },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ['$createdBy', '$$agentId'] },
-                createdAt: { $gte: start, $lte: end }
-              }
-            }
+                $expr: { $eq: ["$createdBy", "$$agentId"] },
+                createdAt: { $gte: start, $lte: end },
+              },
+            },
           ],
-          as: 'orders'
-        }
+          as: "orders",
+        },
       },
       {
         $addFields: {
-          totalOrders: { $size: '$orders' },
+          totalOrders: { $size: "$orders" },
           completedOrders: {
             $size: {
               $filter: {
-                input: '$orders',
-                cond: { $eq: ['$$this.status', 'delivered'] }
-              }
-            }
+                input: "$orders",
+                cond: { $eq: ["$$this.status", "delivered"] },
+              },
+            },
           },
           pendingOrders: {
             $size: {
               $filter: {
-                input: '$orders',
-                cond: { $in: ['$$this.status', ['pending', 'processing', 'shipped']] }
-              }
-            }
+                input: "$orders",
+                cond: {
+                  $in: ["$$this.status", ["pending", "processing", "shipped"]],
+                },
+              },
+            },
           },
-          totalRevenue: { $sum: '$orders.totalAmount' },
-          avgOrderValue: { $avg: '$orders.totalAmount' },
+          totalRevenue: { $sum: "$orders.totalAmount" },
+          avgOrderValue: { $avg: "$orders.totalAmount" },
           completionRate: {
             $cond: {
-              if: { $gt: [{ $size: '$orders' }, 0] },
+              if: { $gt: [{ $size: "$orders" }, 0] },
               then: {
                 $multiply: [
                   {
@@ -189,41 +206,41 @@ router.get('/agents', auth, async (req, res) => {
                       {
                         $size: {
                           $filter: {
-                            input: '$orders',
-                            cond: { $eq: ['$$this.status', 'delivered'] }
-                          }
-                        }
+                            input: "$orders",
+                            cond: { $eq: ["$$this.status", "delivered"] },
+                          },
+                        },
                       },
-                      { $size: '$orders' }
-                    ]
+                      { $size: "$orders" },
+                    ],
                   },
-                  100
-                ]
+                  100,
+                ],
               },
-              else: 0
-            }
-          }
-        }
+              else: 0,
+            },
+          },
+        },
       },
       {
         $addFields: {
           performance: {
             $switch: {
               branches: [
-                { case: { $gte: ['$completionRate', 95] }, then: 'excellent' },
-                { case: { $gte: ['$completionRate', 85] }, then: 'good' },
-                { case: { $gte: ['$completionRate', 70] }, then: 'average' }
+                { case: { $gte: ["$completionRate", 95] }, then: "excellent" },
+                { case: { $gte: ["$completionRate", 85] }, then: "good" },
+                { case: { $gte: ["$completionRate", 70] }, then: "average" },
               ],
-              default: 'poor'
-            }
-          }
-        }
+              default: "poor",
+            },
+          },
+        },
       },
       {
-        $sort: { totalRevenue: -1 }
+        $sort: { totalRevenue: -1 },
       },
       {
-        $limit: parseInt(limit)
+        $limit: parseInt(limit),
       },
       {
         $project: {
@@ -241,83 +258,88 @@ router.get('/agents', auth, async (req, res) => {
           avgOrderValue: 1,
           completionRate: 1,
           performance: 1,
-          createdAt: 1
-        }
-      }
-    ])
+          createdAt: 1,
+        },
+      },
+    ]);
 
-    res.json(agents)
+    res.json(agents);
   } catch (error) {
-    console.error('Agent report error:', error)
-    res.status(500).json({ message: 'Server error', error: error.message })
+    console.error("Agent report error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
 // Driver Performance Report
-router.get('/drivers', auth, async (req, res) => {
+router.get("/drivers", auth, async (req, res) => {
   try {
-    const { period = '30d', limit = 50 } = req.query
-    const { start, end } = getDateRange(period)
-    
+    const { period = "30d", limit = 50 } = req.query;
+    const { start, end } = getDateRange(period);
+
     // Check permissions
-    if (!['admin', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' })
+    if (!["admin", "manager"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     const drivers = await User.aggregate([
       {
         $match: {
-          role: 'driver',
-          createdAt: { $gte: start, $lte: end }
-        }
+          role: "driver",
+          createdAt: { $gte: start, $lte: end },
+        },
       },
       {
         $lookup: {
-          from: 'orders',
-          let: { driverId: '$_id' },
+          from: "orders",
+          let: { driverId: "$_id" },
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ['$assignedDriver', '$$driverId'] },
-                createdAt: { $gte: start, $lte: end }
-              }
-            }
+                $expr: { $eq: ["$assignedDriver", "$$driverId"] },
+                createdAt: { $gte: start, $lte: end },
+              },
+            },
           ],
-          as: 'deliveries'
-        }
+          as: "deliveries",
+        },
       },
       {
         $addFields: {
-          totalDeliveries: { $size: '$deliveries' },
+          totalDeliveries: { $size: "$deliveries" },
           completedDeliveries: {
             $size: {
               $filter: {
-                input: '$deliveries',
-                cond: { $eq: ['$$this.status', 'delivered'] }
-              }
-            }
+                input: "$deliveries",
+                cond: { $eq: ["$$this.status", "delivered"] },
+              },
+            },
           },
           pendingDeliveries: {
             $size: {
               $filter: {
-                input: '$deliveries',
-                cond: { $in: ['$$this.status', ['assigned', 'picked_up', 'in_transit']] }
-              }
-            }
+                input: "$deliveries",
+                cond: {
+                  $in: [
+                    "$$this.status",
+                    ["assigned", "picked_up", "in_transit"],
+                  ],
+                },
+              },
+            },
           },
           totalEarnings: {
             $sum: {
               $map: {
-                input: '$deliveries',
-                as: 'delivery',
-                in: { $multiply: ['$$delivery.totalAmount', 0.1] } // 10% commission
-              }
-            }
+                input: "$deliveries",
+                as: "delivery",
+                in: { $multiply: ["$$delivery.totalAmount", 0.1] }, // 10% commission
+              },
+            },
           },
-          avgDeliveryValue: { $avg: '$deliveries.totalAmount' },
+          avgDeliveryValue: { $avg: "$deliveries.totalAmount" },
           successRate: {
             $cond: {
-              if: { $gt: [{ $size: '$deliveries' }, 0] },
+              if: { $gt: [{ $size: "$deliveries" }, 0] },
               then: {
                 $multiply: [
                   {
@@ -325,41 +347,41 @@ router.get('/drivers', auth, async (req, res) => {
                       {
                         $size: {
                           $filter: {
-                            input: '$deliveries',
-                            cond: { $eq: ['$$this.status', 'delivered'] }
-                          }
-                        }
+                            input: "$deliveries",
+                            cond: { $eq: ["$$this.status", "delivered"] },
+                          },
+                        },
                       },
-                      { $size: '$deliveries' }
-                    ]
+                      { $size: "$deliveries" },
+                    ],
                   },
-                  100
-                ]
+                  100,
+                ],
               },
-              else: 0
-            }
-          }
-        }
+              else: 0,
+            },
+          },
+        },
       },
       {
         $addFields: {
           performance: {
             $switch: {
               branches: [
-                { case: { $gte: ['$successRate', 95] }, then: 'excellent' },
-                { case: { $gte: ['$successRate', 85] }, then: 'good' },
-                { case: { $gte: ['$successRate', 70] }, then: 'average' }
+                { case: { $gte: ["$successRate", 95] }, then: "excellent" },
+                { case: { $gte: ["$successRate", 85] }, then: "good" },
+                { case: { $gte: ["$successRate", 70] }, then: "average" },
               ],
-              default: 'poor'
-            }
-          }
-        }
+              default: "poor",
+            },
+          },
+        },
       },
       {
-        $sort: { totalEarnings: -1 }
+        $sort: { totalEarnings: -1 },
       },
       {
-        $limit: parseInt(limit)
+        $limit: parseInt(limit),
       },
       {
         $project: {
@@ -377,119 +399,121 @@ router.get('/drivers', auth, async (req, res) => {
           avgDeliveryValue: 1,
           successRate: 1,
           performance: 1,
-          createdAt: 1
-        }
-      }
-    ])
+          createdAt: 1,
+        },
+      },
+    ]);
 
-    res.json(drivers)
+    res.json(drivers);
   } catch (error) {
-    console.error('Driver report error:', error)
-    res.status(500).json({ message: 'Server error', error: error.message })
+    console.error("Driver report error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
 // Investor Performance Report
-router.get('/investors', auth, async (req, res) => {
+router.get("/investors", auth, async (req, res) => {
   try {
-    const { period = '30d', limit = 50 } = req.query
-    const { start, end } = getDateRange(period)
-    
+    const { period = "30d", limit = 50 } = req.query;
+    const { start, end } = getDateRange(period);
+
     // Check permissions
-    if (!['admin', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' })
+    if (!["admin", "manager"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     const investors = await User.aggregate([
       {
         $match: {
-          role: 'investor',
-          createdAt: { $gte: start, $lte: end }
-        }
+          role: "investor",
+          createdAt: { $gte: start, $lte: end },
+        },
       },
       {
         $lookup: {
-          from: 'orders',
-          let: { investorId: '$_id' },
+          from: "orders",
+          let: { investorId: "$_id" },
           pipeline: [
             {
               $match: {
-                createdAt: { $gte: start, $lte: end }
-              }
+                createdAt: { $gte: start, $lte: end },
+              },
             },
             {
               $lookup: {
-                from: 'products',
-                localField: 'items.productId',
-                foreignField: '_id',
-                as: 'productDetails'
-              }
-            }
+                from: "products",
+                localField: "items.productId",
+                foreignField: "_id",
+                as: "productDetails",
+              },
+            },
           ],
-          as: 'relatedOrders'
-        }
+          as: "relatedOrders",
+        },
       },
       {
         $addFields: {
-          investmentAmount: { $ifNull: ['$investorProfile.investmentAmount', 0] },
-          unitsSold: { $ifNull: ['$investorProfile.unitsSold', 0] },
-          totalProfit: { $ifNull: ['$investorProfile.totalProfit', 0] },
-          totalSaleValue: { $ifNull: ['$investorProfile.totalSaleValue', 0] },
+          investmentAmount: {
+            $ifNull: ["$investorProfile.investmentAmount", 0],
+          },
+          unitsSold: { $ifNull: ["$investorProfile.unitsSold", 0] },
+          totalProfit: { $ifNull: ["$investorProfile.totalProfit", 0] },
+          totalSaleValue: { $ifNull: ["$investorProfile.totalSaleValue", 0] },
           roi: {
             $cond: {
-              if: { $gt: ['$investorProfile.investmentAmount', 0] },
+              if: { $gt: ["$investorProfile.investmentAmount", 0] },
               then: {
                 $multiply: [
                   {
                     $divide: [
-                      { $ifNull: ['$investorProfile.totalProfit', 0] },
-                      { $ifNull: ['$investorProfile.investmentAmount', 1] }
-                    ]
+                      { $ifNull: ["$investorProfile.totalProfit", 0] },
+                      { $ifNull: ["$investorProfile.investmentAmount", 1] },
+                    ],
                   },
-                  100
-                ]
+                  100,
+                ],
               },
-              else: 0
-            }
+              else: 0,
+            },
           },
           profitMargin: {
             $cond: {
-              if: { $gt: ['$investorProfile.totalSaleValue', 0] },
+              if: { $gt: ["$investorProfile.totalSaleValue", 0] },
               then: {
                 $multiply: [
                   {
                     $divide: [
-                      { $ifNull: ['$investorProfile.totalProfit', 0] },
-                      { $ifNull: ['$investorProfile.totalSaleValue', 1] }
-                    ]
+                      { $ifNull: ["$investorProfile.totalProfit", 0] },
+                      { $ifNull: ["$investorProfile.totalSaleValue", 1] },
+                    ],
                   },
-                  100
-                ]
+                  100,
+                ],
               },
-              else: 0
-            }
-          }
-        }
+              else: 0,
+            },
+          },
+        },
       },
       {
         $addFields: {
           performance: {
             $switch: {
               branches: [
-                { case: { $gte: ['$roi', 20] }, then: 'excellent' },
-                { case: { $gte: ['$roi', 15] }, then: 'good' },
-                { case: { $gte: ['$roi', 10] }, then: 'average' }
+                { case: { $gte: ["$roi", 20] }, then: "excellent" },
+                { case: { $gte: ["$roi", 15] }, then: "good" },
+                { case: { $gte: ["$roi", 10] }, then: "average" },
               ],
-              default: 'poor'
-            }
-          }
-        }
+              default: "poor",
+            },
+          },
+        },
       },
       {
-        $sort: { roi: -1 }
+        $sort: { roi: -1 },
       },
       {
-        $limit: parseInt(limit)
+        $limit: parseInt(limit),
       },
       {
         $project: {
@@ -507,98 +531,100 @@ router.get('/investors', auth, async (req, res) => {
           profitMargin: 1,
           performance: 1,
           investorProfile: 1,
-          createdAt: 1
-        }
-      }
-    ])
+          createdAt: 1,
+        },
+      },
+    ]);
 
-    res.json(investors)
+    res.json(investors);
   } catch (error) {
-    console.error('Investor report error:', error)
-    res.status(500).json({ message: 'Server error', error: error.message })
+    console.error("Investor report error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
 // Country-wise Performance Report
-router.get('/countries', auth, async (req, res) => {
+router.get("/countries", auth, async (req, res) => {
   try {
-    const { period = '30d' } = req.query
-    const { start, end } = getDateRange(period)
-    
+    const { period = "30d" } = req.query;
+    const { start, end } = getDateRange(period);
+
     // Check permissions
-    if (!['admin', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' })
+    if (!["admin", "manager"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     const countries = await User.aggregate([
       {
         $match: {
-          country: { $exists: true, $ne: null, $ne: '' },
-          createdAt: { $gte: start, $lte: end }
-        }
+          country: { $exists: true, $ne: null, $ne: "" },
+          createdAt: { $gte: start, $lte: end },
+        },
       },
       {
         $group: {
-          _id: '$country',
+          _id: "$country",
           totalUsers: { $sum: 1 },
           agents: {
-            $sum: { $cond: [{ $eq: ['$role', 'agent'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$role", "agent"] }, 1, 0] },
           },
           drivers: {
-            $sum: { $cond: [{ $eq: ['$role', 'driver'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$role", "driver"] }, 1, 0] },
           },
           investors: {
-            $sum: { $cond: [{ $eq: ['$role', 'investor'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$role", "investor"] }, 1, 0] },
           },
           customers: {
-            $sum: { $cond: [{ $eq: ['$role', 'customer'] }, 1, 0] }
-          }
-        }
+            $sum: { $cond: [{ $eq: ["$role", "customer"] }, 1, 0] },
+          },
+        },
       },
       {
         $lookup: {
-          from: 'orders',
-          let: { country: '$_id' },
+          from: "orders",
+          let: { country: "$_id" },
           pipeline: [
             {
               $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'user'
-              }
+                from: "users",
+                localField: "userId",
+                foreignField: "_id",
+                as: "user",
+              },
             },
             {
               $match: {
-                $expr: { $eq: [{ $arrayElemAt: ['$user.country', 0] }, '$$country'] },
-                createdAt: { $gte: start, $lte: end }
-              }
-            }
+                $expr: {
+                  $eq: [{ $arrayElemAt: ["$user.country", 0] }, "$$country"],
+                },
+                createdAt: { $gte: start, $lte: end },
+              },
+            },
           ],
-          as: 'orders'
-        }
+          as: "orders",
+        },
       },
       {
         $addFields: {
-          totalOrders: { $size: '$orders' },
-          totalRevenue: { $sum: '$orders.totalAmount' },
-          avgOrderValue: { $avg: '$orders.totalAmount' },
+          totalOrders: { $size: "$orders" },
+          totalRevenue: { $sum: "$orders.totalAmount" },
+          avgOrderValue: { $avg: "$orders.totalAmount" },
           marketPenetration: {
             $multiply: [
               {
                 $divide: [
-                  '$customers',
-                  { $add: ['$totalUsers', 1] } // Add 1 to avoid division by zero
-                ]
+                  "$customers",
+                  { $add: ["$totalUsers", 1] }, // Add 1 to avoid division by zero
+                ],
               },
-              100
-            ]
-          }
-        }
+              100,
+            ],
+          },
+        },
       },
       {
         $project: {
-          country: '$_id',
+          country: "$_id",
           totalUsers: 1,
           agents: 1,
           drivers: 1,
@@ -607,95 +633,97 @@ router.get('/countries', auth, async (req, res) => {
           totalOrders: 1,
           totalRevenue: 1,
           avgOrderValue: 1,
-          marketPenetration: 1
-        }
+          marketPenetration: 1,
+        },
       },
       {
-        $sort: { totalRevenue: -1 }
-      }
-    ])
+        $sort: { totalRevenue: -1 },
+      },
+    ]);
 
-    res.json(countries)
+    res.json(countries);
   } catch (error) {
-    console.error('Country report error:', error)
-    res.status(500).json({ message: 'Server error', error: error.message })
+    console.error("Country report error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
 // Country-wise Driver Performance Report
-router.get('/country-drivers', auth, async (req, res) => {
+router.get("/country-drivers", auth, async (req, res) => {
   try {
-    const { period = '30d' } = req.query
-    const { start, end } = getDateRange(period)
-    
+    const { period = "30d" } = req.query;
+    const { start, end } = getDateRange(period);
+
     // Check permissions
-    if (!['admin', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Access denied' })
+    if (!["admin", "manager"].includes(req.user.role)) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     const countryDrivers = await User.aggregate([
       {
         $match: {
-          role: 'driver',
-          country: { $exists: true, $ne: null, $ne: '' },
-          createdAt: { $gte: start, $lte: end }
-        }
+          role: "driver",
+          country: { $exists: true, $ne: null, $ne: "" },
+          createdAt: { $gte: start, $lte: end },
+        },
       },
       {
         $group: {
-          _id: '$country',
+          _id: "$country",
           totalDrivers: { $sum: 1 },
           activeDrivers: {
-            $sum: { $cond: [{ $eq: ['$availability', 'available'] }, 1, 0] }
-          }
-        }
+            $sum: { $cond: [{ $eq: ["$availability", "available"] }, 1, 0] },
+          },
+        },
       },
       {
         $lookup: {
-          from: 'orders',
-          let: { country: '$_id' },
+          from: "orders",
+          let: { country: "$_id" },
           pipeline: [
             {
               $lookup: {
-                from: 'users',
-                localField: 'assignedDriver',
-                foreignField: '_id',
-                as: 'driver'
-              }
+                from: "users",
+                localField: "assignedDriver",
+                foreignField: "_id",
+                as: "driver",
+              },
             },
             {
               $match: {
-                $expr: { $eq: [{ $arrayElemAt: ['$driver.country', 0] }, '$$country'] },
-                createdAt: { $gte: start, $lte: end }
-              }
-            }
+                $expr: {
+                  $eq: [{ $arrayElemAt: ["$driver.country", 0] }, "$$country"],
+                },
+                createdAt: { $gte: start, $lte: end },
+              },
+            },
           ],
-          as: 'deliveries'
-        }
+          as: "deliveries",
+        },
       },
       {
         $addFields: {
-          totalDeliveries: { $size: '$deliveries' },
+          totalDeliveries: { $size: "$deliveries" },
           successfulDeliveries: {
             $size: {
               $filter: {
-                input: '$deliveries',
-                cond: { $eq: ['$$this.status', 'delivered'] }
-              }
-            }
+                input: "$deliveries",
+                cond: { $eq: ["$$this.status", "delivered"] },
+              },
+            },
           },
           totalEarnings: {
             $sum: {
               $map: {
-                input: '$deliveries',
-                as: 'delivery',
-                in: { $multiply: ['$$delivery.totalAmount', 0.1] } // 10% commission
-              }
-            }
+                input: "$deliveries",
+                as: "delivery",
+                in: { $multiply: ["$$delivery.totalAmount", 0.1] }, // 10% commission
+              },
+            },
           },
           successRate: {
             $cond: {
-              if: { $gt: [{ $size: '$deliveries' }, 0] },
+              if: { $gt: [{ $size: "$deliveries" }, 0] },
               then: {
                 $multiply: [
                   {
@@ -703,54 +731,104 @@ router.get('/country-drivers', auth, async (req, res) => {
                       {
                         $size: {
                           $filter: {
-                            input: '$deliveries',
-                            cond: { $eq: ['$$this.status', 'delivered'] }
-                          }
-                        }
+                            input: "$deliveries",
+                            cond: { $eq: ["$$this.status", "delivered"] },
+                          },
+                        },
                       },
-                      { $size: '$deliveries' }
-                    ]
+                      { $size: "$deliveries" },
+                    ],
                   },
-                  100
-                ]
+                  100,
+                ],
               },
-              else: 0
-            }
+              else: 0,
+            },
           },
           avgPerformance: {
             $switch: {
               branches: [
-                { case: { $gte: ['$successRate', 95] }, then: 'excellent' },
-                { case: { $gte: ['$successRate', 85] }, then: 'good' },
-                { case: { $gte: ['$successRate', 70] }, then: 'average' }
+                { case: { $gte: ["$successRate", 95] }, then: "excellent" },
+                { case: { $gte: ["$successRate", 85] }, then: "good" },
+                { case: { $gte: ["$successRate", 70] }, then: "average" },
               ],
-              default: 'poor'
-            }
-          }
-        }
+              default: "poor",
+            },
+          },
+        },
       },
       {
         $project: {
-          country: '$_id',
+          country: "$_id",
           totalDrivers: 1,
           activeDrivers: 1,
           totalDeliveries: 1,
           successfulDeliveries: 1,
           totalEarnings: 1,
           successRate: 1,
-          avgPerformance: 1
-        }
+          avgPerformance: 1,
+        },
       },
       {
-        $sort: { totalEarnings: -1 }
-      }
-    ])
+        $sort: { totalEarnings: -1 },
+      },
+    ]);
 
-    res.json(countryDrivers)
+    res.json(countryDrivers);
   } catch (error) {
-    console.error('Country driver report error:', error)
-    res.status(500).json({ message: 'Server error', error: error.message })
+    console.error("Country driver report error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
-})
+});
 
-export default router
+// User metrics for owner dashboard
+router.get('/user-metrics', auth, allowRoles('user'), async (req, res) => {
+  try {
+    const ownerId = req.user.id;
+    const agents = await User.find({ role: 'agent', createdBy: ownerId }, { _id: 1 }).lean();
+    const managers = await User.find({ role: 'manager', createdBy: ownerId }, { _id: 1 }).lean();
+    const creatorIds = [ownerId, ...agents.map(a => a._id), ...managers.map(m => m._id)];
+    const orderStats = await Order.aggregate([
+      { $match: { createdBy: { $in: creatorIds } } },
+      { $group: {
+        _id: null,
+        totalOrders: { $sum: 1 },
+        totalSales: { $sum: { $cond: [ { $eq: ['$shipmentStatus', 'delivered'] }, { $subtract: [ '$total', '$discount' ] }, 0 ] } },
+        pendingOrders: { $sum: { $cond: [ { $eq: ['$status', 'pending'] }, 1, 0 ] } },
+        outForDelivery: { $sum: { $cond: [ { $eq: ['$shipmentStatus', 'in_transit'] }, 1, 0 ] } },
+        deliveredOrders: { $sum: { $cond: [ { $eq: ['$shipmentStatus', 'delivered'] }, 1, 0 ] } },
+        cancelledOrders: { $sum: { $cond: [ { $eq: ['$status', 'cancelled'] }, 1, 0 ] } },
+      } }
+    ]);
+    const orders = orderStats[0] || { totalOrders: 0, totalSales: 0, pendingOrders: 0, outForDelivery: 0, deliveredOrders: 0, cancelledOrders: 0 };
+    const productStats = await Product.aggregate([
+      { $match: { createdBy: ownerId } },
+      { $group: { _id: null, totalProductsInHouse: { $sum: '$stockQty' } } }
+    ]);
+    const totalProductsInHouse = productStats[0]?.totalProductsInHouse || 0;
+    const expenseStats = await Expense.aggregate([
+      { $match: { createdBy: ownerId } },
+      { $group: { _id: null, totalExpense: { $sum: '$amount' } } }
+    ]);
+    const totalExpense = expenseStats[0]?.totalExpense || 0;
+    const totalDeposit = orders.totalSales;
+    const totalWithdraw = totalExpense;
+    res.json({
+      totalSales: orders.totalSales,
+      totalOrders: orders.totalOrders,
+      pendingOrders: orders.pendingOrders,
+      outForDelivery: orders.outForDelivery,
+      deliveredOrders: orders.deliveredOrders,
+      cancelledOrders: orders.cancelledOrders,
+      totalProductsInHouse,
+      totalDeposit,
+      totalWithdraw,
+      totalExpense
+    });
+  } catch (error) {
+    console.error('Error fetching user metrics:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+export default router;
