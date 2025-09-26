@@ -2,7 +2,6 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../../ui/Toast'
 import { trackProductView, trackAddToCart } from '../../utils/analytics'
-import { API_BASE } from '../../api'
 
 export default function ProductCard({ product, onAddToCart, selectedCountry = 'SA' }) {
   const navigate = useNavigate()
@@ -56,16 +55,7 @@ export default function ProductCard({ product, onAddToCart, selectedCountry = 'S
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return '/placeholder-product.svg'
-    if (/^https?:\/\//i.test(imagePath)) return imagePath
-    // Normalize 'uploads/...' (no leading slash) to '/uploads/...'
-    if (imagePath.startsWith('uploads/')) {
-      const normalized = `/${imagePath}`
-      return `${API_BASE}${normalized}`
-    }
-    // Resolve uploaded images via API base (same origin if not set)
-    if (imagePath.startsWith('/uploads/')) return `${API_BASE}${imagePath}`
-    // Fallback for other relative assets
-    return imagePath
+    return imagePath.startsWith('http') ? imagePath : `${import.meta.env.VITE_API_BASE || 'http://localhost:4000'}${imagePath}`
   }
 
   const renderStars = (rating) => {
