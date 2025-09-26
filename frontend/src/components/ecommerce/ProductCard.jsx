@@ -124,13 +124,16 @@ export default function ProductCard({ product, onAddToCart, selectedCountry = 'S
     }
   }
 
+  // Prefer the first image from the images array, but fall back to single imagePath if needed
+  const mainImagePath = product?.images?.[0] || product?.imagePath || ''
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
          onClick={handleProductClick}>
       {/* Product Image */}
       <div className="relative aspect-square overflow-hidden bg-gray-100">
         <img
-          src={getImageUrl(product.images?.[0])}
+          src={getImageUrl(mainImagePath)}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           onError={(e) => {

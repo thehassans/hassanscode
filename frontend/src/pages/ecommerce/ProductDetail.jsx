@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { apiGet } from '../../api'
+import { apiGet, API_BASE } from '../../api'
 import { useToast } from '../../ui/Toast'
 import Header from '../../components/layout/Header'
 import ShoppingCart from '../../components/ecommerce/ShoppingCart'
@@ -259,12 +259,18 @@ const ProductDetail = () => {
     )
   }
 
-  // Handle multiple image sources with fallbacks
-  const images = product.images && product.images.length > 0 
+  // Handle multiple image sources with fallbacks and resolve uploaded paths to absolute URLs
+  const resolveImageUrl = (u) => {
+    if (!u) return '/placeholder-product.svg'
+    if (typeof u !== 'string') return '/placeholder-product.svg'
+    if (u.startsWith('http')) return u
+    if (u.startsWith('/uploads/')) return `${API_BASE}${u}`
+    return u
+  }
+  const images = (product.images && product.images.length > 0 
     ? product.images 
-    : product.imagePath 
-      ? [product.imagePath] 
-      : ['/placeholder-product.svg']
+    : (product.imagePath ? [product.imagePath] : ['/placeholder-product.svg'])
+  ).map(resolveImageUrl)
   
   const originalPrice = product.onSale ? product.originalPrice : null
 
