@@ -61,7 +61,6 @@ export default function DriverPanel() {
       const onAssigned = () => {
         try {
           loadAssigned()
-          loadAvailable()
         } catch {}
       }
       const onUpdated = () => {
@@ -236,7 +235,6 @@ export default function DriverPanel() {
       if (reason === null) return
       await apiPost(`/api/orders/${order._id || order.id}/cancel`, { reason })
       await loadAssigned()
-      await loadAvailable()
     } catch (e) {
       alert(e?.message || 'Failed to cancel order')
     }
@@ -324,7 +322,6 @@ export default function DriverPanel() {
           await apiPost(`/api/orders/${id}/shipment/update`, { shipmentStatus: status, deliveryNotes: note || '' })
         }
         await loadAssigned()
-        await loadAvailable()
         setStatus('')
         setNote('')
         setAmount('')
