@@ -2108,13 +2108,3 @@ a {
     border-radius: 8px;
   }
 }
-
-
-/* === Overrides: remove WA inbox wallpaper and set solid background === */
-.wa-wallpaper::before {
-  display: none !important;
-  background: none !important;
-}
-.wa-messages-container {
-  background: var(--wa-bg) !important;
-}
