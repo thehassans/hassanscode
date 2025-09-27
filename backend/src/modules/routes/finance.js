@@ -183,3 +183,26 @@ router.post('/remittances/:id/accept', auth, allowRoles('manager'), async (req, 
     return res.status(500).json({ message: 'Failed to accept remittance' })
   }
 })
+
+// Summary for driver: total delivered and collected in period
+router.get('/remittances/summary', auth, allowRoles('driver'), async (req, res) => {
+  try{
+    const { fromDate = '', toDate = '' } = req.query || {}
+    const match = { deliveryBoy: req.user.id, shipmentStatus: 'delivered' }
+    if (fromDate || toDate){
+      match.deliveredAt = {}
+      if (fromDate) match.deliveredAt.$gte = new Date(fromDate)
+      if (toDate) match.deliveredAt.$lte = new Date(toDate)
+    }
+    const rows = await Order.aggregate([
+      { $match: match },
+      { $group: { _id: null, totalDeliveredOrders: { $sum: 1 }, totalCollectedAmount: { $sum: { $ifNull: ['$collectedAmount', 0] } } } }
+    ])
+    const me = await User.findById(req.user.id).select('country')
+    const currency = currencyFromCountry(me?.country || '')
+    const out = rows && rows[0] ? rows[0] : { totalDeliveredOrders: 0, totalCollectedAmount: 0 }
+    return res.json({ ...out, currency })
+  }catch(err){
+    return res.status(500).json({ message: 'Failed to load summary' })
+  }
+})

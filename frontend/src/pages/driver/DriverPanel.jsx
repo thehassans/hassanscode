@@ -19,6 +19,7 @@ export default function DriverPanel() {
   const [remForm, setRemForm] = useState({ managerId:'', amount:'', fromDate:'', toDate:'', note:'' })
   const [remLoading, setRemLoading] = useState(false)
   const [remittances, setRemittances] = useState([])
+  const [remSummary, setRemSummary] = useState({ totalDeliveredOrders: 0, totalCollectedAmount: 0, currency: '' })
 
   // Get driver's current location
   function refreshLocation(){
@@ -39,6 +40,19 @@ export default function DriverPanel() {
   }
   async function loadRemittances(){
     try{ const res = await apiGet('/api/finance/remittances'); setRemittances(Array.isArray(res?.remittances)? res.remittances:[]) }catch{ setRemittances([]) }
+  }
+  async function loadRemittanceSummary(range){
+    try{
+      const params = new URLSearchParams()
+      if (range?.fromDate) params.set('fromDate', range.fromDate)
+      if (range?.toDate) params.set('toDate', range.toDate)
+      const res = await apiGet(`/api/finance/remittances/summary?${params.toString()}`)
+      setRemSummary({
+        totalDeliveredOrders: Number(res?.totalDeliveredOrders||0),
+        totalCollectedAmount: Number(res?.totalCollectedAmount||0),
+        currency: res?.currency || ''
+      })
+    }catch{ setRemSummary({ totalDeliveredOrders:0, totalCollectedAmount:0, currency:'' }) }
   }
   async function submitRemittance(){
     setRemLoading(true)
@@ -73,7 +87,7 @@ export default function DriverPanel() {
   useEffect(() => {
     loadAssigned()
     // Load managers and remittances initially
-    try{ loadManagers(); loadRemittances() }catch{}
+    try{ loadManagers(); loadRemittances(); loadRemittanceSummary({}) }catch{}
   }, [])
   // city no longer affects list; kept for future filtering
 
@@ -553,11 +567,18 @@ export default function DriverPanel() {
                 <option key={String(m._id||m.id)} value={String(m._id||m.id)}>{`${m.firstName||''} ${m.lastName||''}`}</option>
               ))}
             </select>
-            <input className="input" type="number" min="0" step="0.01" placeholder="Amount" value={remForm.amount} onChange={e=> setRemForm(f=>({ ...f, amount: e.target.value }))} />
-            <input className="input" type="date" value={remForm.fromDate} onChange={e=> setRemForm(f=>({ ...f, fromDate: e.target.value }))} />
-            <input className="input" type="date" value={remForm.toDate} onChange={e=> setRemForm(f=>({ ...f, toDate: e.target.value }))} />
+            <div className="input" style={{display:'flex', alignItems:'center', gap:8, paddingRight:10}}>
+              <input style={{flex:1, minWidth:0}} type="number" min="0" step="0.01" placeholder="Amount" value={remForm.amount} onChange={e=> setRemForm(f=>({ ...f, amount: e.target.value }))} />
+              <span style={{opacity:0.9, whiteSpace:'nowrap'}}>{remSummary.currency || ''}</span>
+            </div>
+            <input className="input" type="date" value={remForm.fromDate} onChange={e=> { const v=e.target.value; setRemForm(f=>({ ...f, fromDate: v })); loadRemittanceSummary({ ...remForm, fromDate: v }) }} />
+            <input className="input" type="date" value={remForm.toDate} onChange={e=> { const v=e.target.value; setRemForm(f=>({ ...f, toDate: v })); loadRemittanceSummary({ ...remForm, toDate: v }) }} />
           </div>
           <div className="section" style={{display:'grid', gap:8}}>
+            <div style={{display:'flex', gap:12, flexWrap:'wrap'}}>
+              <span className="badge">Total Deliveries: {remSummary.totalDeliveredOrders}</span>
+              <span className="badge">Total Collected: {remSummary.currency} {remSummary.totalCollectedAmount.toFixed(2)}</span>
+            </div>
             <textarea className="input" placeholder="Note (optional)" value={remForm.note} onChange={e=> setRemForm(f=>({ ...f, note: e.target.value }))} rows={2} />
             <div style={{display:'flex', justifyContent:'flex-end'}}>
               <button className="btn" disabled={remLoading || !remForm.managerId || remForm.amount==='' } onClick={submitRemittance}>{remLoading? 'Submitting…':'Submit Remittance'}</button>
