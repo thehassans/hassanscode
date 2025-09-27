@@ -65,7 +65,10 @@ export default function PrintLabel(){
   const customerName = order.customerName || '-'
   const phoneFull = `${order.phoneCountryCode||''} ${order.customerPhone||''}`.trim()
   const whatsapp = phoneFull
-  const addressLines = [order.customerArea, order.city, order.orderCountry].filter(Boolean).join(', ')
+  const addressFull = [order.customerAddress, order.customerArea, order.city, order.orderCountry, order.customerLocation]
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(', ')
   const productName = order.productId?.name || (order.details ? order.details.slice(0,64) : '-')
   const qty = Number(order.quantity||1)
   const unit = (order.productId?.price != null) ? Number(order.productId.price) : undefined
@@ -115,7 +118,7 @@ export default function PrintLabel(){
             <div><strong>Phone No:</strong><div>{phoneFull || '-'}</div></div>
             <div><strong>WhatsApp No:</strong><div>{whatsapp || '-'}</div></div>
           </div>
-          <div><strong>Address:</strong> {addressLines || '-'}</div>
+          <div><strong>Address:</strong> {addressFull || '-'}</div>
         </div>
 
         {/* Product Details */}
@@ -156,8 +159,8 @@ export default function PrintLabel(){
             <div>{driverName || '-'}</div>
           </div>
           <div className="sec" style={{display:'grid', gap:4, justifyItems:'end'}}>
-            <div className="h">COD AMOUNT</div>
-            <div style={{fontSize:18, fontWeight:800}}>{fmt2(codAmount)}</div>
+            <div className="h">Total Amount</div>
+            <div style={{fontSize:18, fontWeight:800}}>{(total!=null) ? fmt2(total) : '-'}</div>
           </div>
           <div className="sec" style={{display:'grid', gap:6}}>
             <div className="h">Order No</div>
