@@ -725,8 +725,10 @@ export default function WhatsAppInbox() {
 
     // Listen for message status updates
     socket.on('message.status', ({ jid, id, status }) => {
+      // normalize backend variations: seen/read (case-insensitive)
+      const st = typeof status === 'string' && status.toLowerCase() === 'seen' ? 'read' : status
       if (jid === activeJidRef.current) {
-        setMessages((prev) => prev.map((m) => (m.key?.id === id ? { ...m, status } : m)))
+        setMessages((prev) => prev.map((m) => (m.key?.id === id ? { ...m, status: st } : m)))
       }
     })
 
@@ -1766,7 +1768,8 @@ export default function WhatsAppInbox() {
 
   function Ticks({ isMe, status }) {
     if (!isMe) return null
-    const st = status || 'sent' // default to 'sent' if unknown
+    // normalize status: some backends may use 'seen' instead of 'read'
+    const st = (status === 'seen' ? 'read' : status) || 'sent' // default to 'sent' if unknown
     const Blue = '#4fb3ff' // Blue for read messages
     const Grey = '#9aa4b2' // Grey for sent/delivered messages
 

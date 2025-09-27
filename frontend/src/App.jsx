@@ -182,7 +182,7 @@ export default function App() {
         <Route path="inbox/whatsapp" element={<WhatsAppInbox />} />
         <Route path="agents" element={<Agents />} />
         <Route path="drivers" element={<ManagerDrivers />} />
-        <Route path="orders" element={<SubmitOrder />} />
+        <Route path="orders" element={<ManagerDrivers />} />
         <Route path="inhouse-products" element={<InhouseProducts />} />
       </Route>
 
