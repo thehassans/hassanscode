@@ -5,7 +5,7 @@ import { io } from 'socket.io-client'
 import Modal from '../../components/Modal.jsx'
 
 export default function Managers(){
-  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', password:'', phone:'', canCreateAgents:true, canManageProducts:false, canCreateOrders:false })
+  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', password:'', phone:'', country:'', canCreateAgents:true, canManageProducts:false, canCreateOrders:false })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [q, setQ] = useState('')
@@ -71,13 +71,14 @@ export default function Managers(){
         email: form.email,
         password: form.password,
         phone: form.phone,
+        country: form.country,
         canCreateAgents: !!form.canCreateAgents,
         canManageProducts: !!form.canManageProducts,
         canCreateOrders: !!form.canCreateOrders,
       }
       await apiPost('/api/users/managers', payload)
       setMsg('Manager created successfully')
-      setForm({ firstName:'', lastName:'', email:'', password:'', phone:'', canCreateAgents:true, canManageProducts:false, canCreateOrders:false })
+      setForm({ firstName:'', lastName:'', email:'', password:'', phone:'', country:'', canCreateAgents:true, canManageProducts:false, canCreateOrders:false })
       setPhoneError('')
       loadManagers(q)
     }catch(err){ setMsg(err?.message || 'Failed to create manager') }
@@ -148,6 +149,16 @@ export default function Managers(){
               </div>
               <div className={`helper-text ${phoneError? 'error':''}`}>{phoneError || 'Include country code, e.g. +971 50 123 4567'}</div>
             </div>
+            <div>
+              <div className="label">Country</div>
+              <select className="input" name="country" value={form.country} onChange={onChange} required>
+                <option value="">-- Select Country --</option>
+                <option value="UAE">UAE</option>
+                <option value="Oman">Oman</option>
+                <option value="KSA">KSA</option>
+                <option value="Bahrain">Bahrain</option>
+              </select>
+            </div>
           </div>
           <div>
             <div className="label">Password</div>
@@ -184,6 +195,7 @@ export default function Managers(){
                 <th style={{textAlign:'left', padding:'10px 12px'}}>Name</th>
                 <th style={{textAlign:'left', padding:'10px 12px'}}>Email</th>
                 <th style={{textAlign:'left', padding:'10px 12px'}}>Permissions</th>
+                <th style={{textAlign:'left', padding:'10px 12px'}}>Country</th>
                 <th style={{textAlign:'left', padding:'10px 12px'}}>Created</th>
                 <th style={{textAlign:'right', padding:'10px 12px'}}>Actions</th>
               </tr>
@@ -205,6 +217,9 @@ export default function Managers(){
                         {u.managerPermissions?.canCreateOrders ? <span className="badge">Orders</span> : null}
                         {(!u.managerPermissions || (!u.managerPermissions.canCreateAgents && !u.managerPermissions.canManageProducts && !u.managerPermissions.canCreateOrders)) && <span className="badge warn">No Permissions</span>}
                       </div>
+                    </td>
+                    <td style={{padding:'10px 12px'}}>
+                      {u.country ? <span className="badge">{u.country}</span> : <span className="badge warn">N/A</span>}
                     </td>
                     <td style={{padding:'10px 12px'}}>{fmtDate(u.createdAt)}</td>
                     <td style={{padding:'10px 12px', textAlign:'right'}}>

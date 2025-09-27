@@ -382,12 +382,14 @@ router.get('/my-managers', auth, allowRoles('driver'), async (req, res) => {
 
 // Create manager (admin, user)
 router.post('/managers', auth, allowRoles('admin','user'), async (req, res) => {
-  const { firstName, lastName, email, password, phone, canCreateAgents=false, canManageProducts=false, canCreateOrders=false } = req.body || {}
+  const { firstName, lastName, email, password, phone, country='', canCreateAgents=false, canManageProducts=false, canCreateOrders=false } = req.body || {}
   if (!firstName || !lastName || !email || !password) return res.status(400).json({ message: 'Missing required fields' })
   const exists = await User.findOne({ email })
   if (exists) return res.status(400).json({ message: 'Email already in use' })
   const createdBy = req.user?.id
-  const manager = new User({ firstName, lastName, email, password, phone, role: 'manager', createdBy, managerPermissions: { canCreateAgents: !!canCreateAgents, canManageProducts: !!canManageProducts, canCreateOrders: !!canCreateOrders } })
+  const ALLOWED = new Set(['UAE','Oman','KSA','Bahrain'])
+  const ctry = ALLOWED.has(String(country)) ? String(country) : ''
+  const manager = new User({ firstName, lastName, email, password, phone, country: ctry, role: 'manager', createdBy, managerPermissions: { canCreateAgents: !!canCreateAgents, canManageProducts: !!canManageProducts, canCreateOrders: !!canCreateOrders } })
   await manager.save()
   
   // Create notification for manager creation
