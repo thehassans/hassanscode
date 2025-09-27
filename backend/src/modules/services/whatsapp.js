@@ -339,8 +339,7 @@ async function ensureSock() {
       const id = u?.key?.id;
       if (!jid || !id) continue;
       const arr = messages.get(jid);
-      if (!arr) continue;
-      const idx = arr.findIndex(x => x?.key?.id === id);
+      const idx = Array.isArray(arr) ? arr.findIndex(x => x?.key?.id === id) : -1;
       if (idx >= 0) {
         const rec = u.receipt || u;
         let newStatus = null;
@@ -357,6 +356,14 @@ async function ensureSock() {
             try{ await WaMessage.updateOne({ jid, 'key.id': id }, { $set: { status: newStatus } }) }catch{}
           }
         }
+      } else {
+        // Cache pending status to apply when upsert arrives
+        const rec = u.receipt || u;
+        let newStatus = null;
+        if (rec.playedTimestamp) newStatus = 'read';
+        else if (rec.readTimestamp) newStatus = 'read';
+        else if (rec.receiptTimestamp) newStatus = 'delivered';
+        if (newStatus) pendingStatus.set(String(id), { jid, status: newStatus });
       }
     }
   });

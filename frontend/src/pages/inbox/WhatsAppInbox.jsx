@@ -719,8 +719,31 @@ export default function WhatsAppInbox() {
     // Listen for new messages
     socket.on('message.new', ({ jid, message }) => {
       refreshChatsSoon() // debounce chat list refresh
-      if (jid === activeJidRef.current) {
-        setMessages((prev) => [...prev, message])
+      const isActive = (jid === activeJidRef.current)
+      if (isActive) {
+        setMessages((prev) => {
+          const next = [...prev, message]
+          // Heuristic: if inbound msg arrives, consider prior outgoing messages at least delivered
+          try{
+            const fromMe = !!message?.key?.fromMe
+            if (!fromMe) {
+              const order = { sending: 0, sent: 1, delivered: 2, read: 3 }
+              for (let i=next.length-2; i>=0; i--) {
+                const m = next[i]
+                const me = !!(m?.key?.fromMe || m?.fromMe)
+                if (!me) continue
+                const curr = String(m?.status || 'sent').toLowerCase()
+                if ((order[curr]||0) < (order['delivered']||0)) {
+                  next[i] = { ...m, status: 'delivered' }
+                } else {
+                  // already delivered/read; stop early if we hit an older read
+                  if ((order[curr]||0) >= (order['read']||0)) break
+                }
+              }
+            }
+          }catch{}
+          return next
+        })
         setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
       }
       // Notify on incoming messages when tab hidden or different chat
