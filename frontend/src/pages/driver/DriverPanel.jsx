@@ -286,7 +286,7 @@ export default function DriverPanel() {
           await apiPost(`/api/orders/${id}/deliver`, payload)
         } else if (status === 'cancelled') {
           await apiPost(`/api/orders/${id}/cancel`, { reason: note || '' })
-        } else if (status === 'no_response' || status === 'attempted' || status === 'contacted') {
+        } else if (status === 'no_response' || status === 'attempted' || status === 'contacted' || status === 'picked_up') {
           await apiPost(`/api/orders/${id}/shipment/update`, { shipmentStatus: status, deliveryNotes: note || '' })
         }
         await loadAssigned()
@@ -300,12 +300,20 @@ export default function DriverPanel() {
       }
     }
 
+    const isPickedUp = String(order.shipmentStatus || order.status || '').toLowerCase() === 'picked_up'
+
     return (
-      <div className="driver-order-card" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-        <div className="order-header">
-          <div className="order-id">{order.invoiceNumber ? `#${order.invoiceNumber}` : `Order #${order._id?.slice(-6) || 'N/A'}`}</div>
-          <div className="order-status">{order.shipmentStatus || order.status || 'Pending'}</div>
+      <div className="driver-order-card" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{position:'relative'}}>
+        {/* Top invoice chip */}
+        <div style={{display:'flex', alignItems:'center', marginBottom:8}}>
+          <div className="chip" style={{background:'#635bff14', color:'#635bff', fontWeight:700}}>
+            {order.invoiceNumber ? `#${order.invoiceNumber}` : `Order #${order._id?.slice(-6) || 'N/A'}`}
+          </div>
         </div>
+        {/* Corner small banner for Picked Up */}
+        {isPickedUp && (
+          <div className="chip" style={{position:'absolute', top:8, right:8, background:'#f59e0b22', color:'#b45309', fontWeight:800}}>PICKED UP</div>
+        )}
 
         <div className="order-content">
           {/* Top Summary */}
@@ -329,9 +337,7 @@ export default function DriverPanel() {
                     </svg>
                     <strong>Total:</strong> <span className="value price">{fmtPrice(order)}</span>
                   </span>
-                  {distance !== null ? (
-                    <span className="chip" title="Distance" style={{marginLeft:8}}>{formatDistance(distance)}</span>
-                  ) : null}
+                  {/* distance chip removed for minimal UI */}
                 </div>
               </div>
               <div style={{textAlign:'right', minWidth:110}}>
@@ -423,12 +429,21 @@ export default function DriverPanel() {
 
           {showActions && (
             <div className="order-actions" style={{flexDirection:'column', alignItems:'stretch'}}>
-              <div className="status-toggle" role="tablist" aria-label="Update order status">
-                <button type="button" className={`status-option ${status==='delivered' ? 'active' : ''}`} onClick={()=> setStatus('delivered')}>Delivered</button>
-                <button type="button" className={`status-option ${status==='cancelled' ? 'active' : ''}`} onClick={()=> setStatus('cancelled')}>Cancelled</button>
-                <button type="button" className={`status-option ${status==='no_response' ? 'active' : ''}`} onClick={()=> setStatus('no_response')}>No Response</button>
-                <button type="button" className={`status-option ${status==='attempted' ? 'active' : ''}`} onClick={()=> setStatus('attempted')}>Attempted</button>
-                <button type="button" className={`status-option ${status==='contacted' ? 'active' : ''}`} onClick={()=> setStatus('contacted')}>Contacted</button>
+              <div className="status-row" style={{marginBottom:8}}>
+                <select
+                  className="input"
+                  value={status}
+                  onChange={(e)=> setStatus(e.target.value)}
+                  style={{borderRadius:12}}
+                >
+                  <option value="">Select status…</option>
+                  <option value="picked_up">Picked Up</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="attempted">Attempted</option>
+                  <option value="no_response">No Response</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
               </div>
 
               <div className="status-form" style={{display:'grid', gap:10}}>
@@ -460,29 +475,6 @@ export default function DriverPanel() {
         <p className="panel-subtitle">Manage your delivery orders efficiently</p>
       </div>
 
-      <div className="panel-controls">
-        <div className="filter-section">
-          <input
-            className="city-filter"
-            placeholder="Filter by city..."
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-          />
-        </div>
-
-        <div className="sort-section">
-          <select
-            className="sort-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <option value="nearest">Nearest First</option>
-            <option value="farthest">Farthest First</option>
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-          </select>
-        </div>
-      </div>
 
       <div className="orders-section">
         <div className="section-header">
