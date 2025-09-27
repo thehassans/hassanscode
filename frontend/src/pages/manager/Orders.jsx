@@ -78,6 +78,7 @@ export default function ManagerOrders(){
     const driverId = String(o?.deliveryBoy?._id || o?.deliveryBoy || '')
     const myDrivers = drivers.filter(d => !o.city || !d.city || String(d.city).toLowerCase() === String(o.city).toLowerCase())
     const fullAddress = [o.customerAddress, o.customerArea, o.city, o.orderCountry, o.customerLocation].filter(Boolean).filter((v,i,a)=> a.indexOf(v)===i).join(', ')
+    const driverName = o?.deliveryBoy ? `${o.deliveryBoy.firstName||''} ${o.deliveryBoy.lastName||''}`.trim() : ''
     return (
       <div className="card" style={{display:'grid', gap:10}}>
         <div className="card-header" style={{alignItems:'center'}}>
@@ -85,13 +86,16 @@ export default function ManagerOrders(){
             <div className="badge">{o.orderCountry || '-'}</div>
             <div className="chip" style={{background:'transparent'}}>{o.city || '-'}</div>
             <div>{statusBadge(o.shipmentStatus || o.status)}</div>
+            {driverName && (
+              <div className="chip" style={{background:'var(--panel)', border:'1px solid var(--border)'}} title={driverName}>Driver: <strong style={{marginLeft:6}}>{driverName}</strong></div>
+            )}
           </div>
           <div style={{display:'flex', alignItems:'center', gap:8}}>
             {o.invoiceNumber ? <div style={{fontWeight:800}}>#{o.invoiceNumber}</div> : null}
             <button className="btn secondary" onClick={()=> window.open(`/label/${id}`, '_blank', 'noopener,noreferrer')}>Print Label</button>
           </div>
         </div>
-        <div className="section" style={{display:'grid', gridTemplateColumns:'1.2fr 1fr 1fr', gap:10}}>
+        <div className="section" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:10}}>
           <div>
             <div className="label">Customer</div>
             <div style={{fontWeight:700}}>{o.customerName || '-'}</div>
@@ -106,14 +110,16 @@ export default function ManagerOrders(){
           </div>
           <div>
             <div className="label">Assigned Driver</div>
-            <div style={{display:'grid', gridTemplateColumns:'1fr auto', gap:8, alignItems:'center'}}>
-              <select className="input" value={driverId} onChange={e=> assignDriver(id, e.target.value)} disabled={assigning===id}>
+            <div style={{display:'grid', gap:8, alignItems:'start'}}>
+              <select className="input" value={driverId} onChange={e=> assignDriver(id, e.target.value)} disabled={assigning===id} title={driverId ? 'Change assigned driver' : 'Select a driver'}>
                 <option value="">-- Select Driver --</option>
                 {(myDrivers.length? myDrivers: drivers).map(d => (
                   <option key={String(d._id)} value={String(d._id)}>{`${d.firstName||''} ${d.lastName||''}${d.city? ' • '+d.city:''}`}</option>
                 ))}
               </select>
-              <button className="btn secondary" onClick={()=> assignDriver(id, driverId)} disabled={!driverId || assigning===id}>{assigning===id? 'Assigning…':'Assign'}</button>
+              <button className="btn" onClick={()=> assignDriver(id, driverId)} disabled={!driverId || assigning===id} style={{width:'100%'}}>
+                {assigning===id? 'Assigning…':'Assign'}
+              </button>
             </div>
           </div>
         </div>
