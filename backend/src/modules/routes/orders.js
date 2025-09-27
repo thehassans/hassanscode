@@ -237,7 +237,7 @@ router.get('/', auth, allowRoles('admin','user','agent','manager'), async (req, 
 })
 
 // Get a single order by ID (for label printing, detail views)
-router.get('/:id', auth, allowRoles('admin','user','agent','manager'), async (req, res) => {
+router.get('/view/:id', auth, allowRoles('admin','user','agent','manager'), async (req, res) => {
   const { id } = req.params
   const ord = await Order.findById(id)
     .populate('productId')
@@ -246,13 +246,14 @@ router.get('/:id', auth, allowRoles('admin','user','agent','manager'), async (re
   if (!ord) return res.status(404).json({ message: 'Order not found' })
 
   // Access control similar to list
+  const creatorId = String(ord.createdBy && ord.createdBy._id ? ord.createdBy._id : ord.createdBy)
   if (req.user.role === 'admin') {
     // allowed
   } else if (req.user.role === 'user') {
     const agents = await User.find({ role: 'agent', createdBy: req.user.id }, { _id: 1 }).lean()
     const managers = await User.find({ role: 'manager', createdBy: req.user.id }, { _id: 1 }).lean()
     const allowed = new Set([String(req.user.id), ...agents.map(a=>String(a._id)), ...managers.map(m=>String(m._id))])
-    if (!allowed.has(String(ord.createdBy))) return res.status(403).json({ message: 'Not allowed' })
+    if (!allowed.has(creatorId)) return res.status(403).json({ message: 'Not allowed' })
   } else if (req.user.role === 'manager') {
     const mgr = await User.findById(req.user.id).select('createdBy').lean()
     const ownerId = String(mgr?.createdBy || '')
@@ -260,9 +261,9 @@ router.get('/:id', auth, allowRoles('admin','user','agent','manager'), async (re
     const agents = await User.find({ role: 'agent', createdBy: ownerId }, { _id: 1 }).lean()
     const managers = await User.find({ role: 'manager', createdBy: ownerId }, { _id: 1 }).lean()
     const allowed = new Set([ownerId, ...agents.map(a=>String(a._id)), ...managers.map(m=>String(m._id))])
-    if (!allowed.has(String(ord.createdBy))) return res.status(403).json({ message: 'Not allowed' })
+    if (!allowed.has(creatorId)) return res.status(403).json({ message: 'Not allowed' })
   } else if (req.user.role === 'agent') {
-    if (String(ord.createdBy) !== String(req.user.id)) return res.status(403).json({ message: 'Not allowed' })
+    if (creatorId !== String(req.user.id)) return res.status(403).json({ message: 'Not allowed' })
   }
 
   res.json({ order: ord })

@@ -12,7 +12,7 @@ export default function PrintLabel(){
   useEffect(()=>{
     let alive = true
     ;(async()=>{
-      try{ const { order } = await apiGet(`/api/orders/${id}`); if(alive) setOrder(order) }catch{ if(alive) setOrder(null) } finally{ if(alive) setLoading(false) }
+      try{ const { order } = await apiGet(`/api/orders/view/${id}`); if(alive) setOrder(order) }catch{ if(alive) setOrder(null) } finally{ if(alive) setLoading(false) }
     })()
     return ()=>{ alive = false }
   }, [id])
