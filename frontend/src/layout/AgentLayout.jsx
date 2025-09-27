@@ -211,8 +211,9 @@ export default function AgentLayout() {
     },
   ]
 
-  // On mobile, the bottom tabs are always visible, and the sidebar is always hidden.
-  const tabsVisible = isMobile
+  // On mobile, hide bottom tabs within the Inbox for a chat-focused UI
+  const isInboxRoute = (location.pathname || '').includes('/inbox/whatsapp')
+  const tabsVisible = isMobile && !isInboxRoute
   const hideSidebar = isMobile
 
   useEffect(() => {

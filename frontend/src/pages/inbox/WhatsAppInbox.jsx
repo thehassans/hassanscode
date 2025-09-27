@@ -602,7 +602,32 @@ export default function WhatsAppInbox() {
       try {
         const r = await apiGet(`/api/wa/messages?jid=${encodeURIComponent(jid)}&limit=50`)
         const items = Array.isArray(r) ? r : r?.items || []
-        setMessages(items)
+        // Merge statuses with existing messages to avoid downgrading ticks on refresh
+        setMessages((prev) => {
+          try{
+            const order = { sending: 0, sent: 1, delivered: 2, read: 3 }
+            const prevById = new Map()
+            for (const m of prev) {
+              const id = m?.key?.id
+              if (!id) continue
+              const s = (m?.status || (m?.key?.fromMe ? 'sent' : undefined))
+              prevById.set(id, s)
+            }
+            return items.map((m) => {
+              const id = m?.key?.id
+              if (!id) return m
+              const serverS = m?.status
+              const localS = prevById.get(id)
+              if (!serverS && localS) return { ...m, status: localS }
+              if (serverS && localS) {
+                const a = order[String(localS) || 'sent'] || 0
+                const b = order[String(serverS) || 'sent'] || 0
+                return a > b ? { ...m, status: localS } : m
+              }
+              return m
+            })
+          }catch{ return items }
+        })
         setHasMore(!!r?.hasMore)
         setBeforeId(r?.nextBeforeId || null)
         if (reset) {

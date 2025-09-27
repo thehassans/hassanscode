@@ -568,7 +568,8 @@ async function getMessages(jid, limit = 25, beforeId = null) {
         pushName: doc.pushName,
         messageTimestamp: doc.messageTimestamp,
         fromMe: !!doc.fromMe,
-        status: doc.status || (doc.fromMe ? 'sent' : undefined),
+        // Do NOT default to 'sent' here; let the client preserve any higher, known state
+        status: doc.status,
       }));
       // Prepend older DB messages so result stays ascending
       items = [...dbMsgs.reverse(), ...items];
