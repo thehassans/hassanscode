@@ -1352,27 +1352,19 @@ export default function WhatsAppInbox() {
 
   // WhatsApp-like icons
   function MicIcon({ size = 26 }) {
+    // Circle uses currentColor, mic glyph uses white for strong contrast
     return (
       <svg
         width={size}
         height={size}
         viewBox="0 0 24 24"
-        fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden
       >
-        <path
-          d="M12 14c1.657 0 3-1.343 3-3V6a3 3 0 1 0-6 0v5c0 1.657 1.343 3 3 3Z"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        />
-        <path
-          d="M5 11a7 7 0 0 0 14 0"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        <path d="M12 18v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <circle cx="12" cy="12" r="10" fill="currentColor" />
+        <path d="M12 7a2.5 2.5 0 0 0-2.5 2.5v2A2.5 2.5 0 0 0 12 14a2.5 2.5 0 0 0 2.5-2.5v-2A2.5 2.5 0 0 0 12 7Z" fill="#fff"/>
+        <path d="M7.5 11.5A4.5 4.5 0 0 0 12 16a4.5 4.5 0 0 0 4.5-4.5" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M12 16v2.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
       </svg>
     )
   }
