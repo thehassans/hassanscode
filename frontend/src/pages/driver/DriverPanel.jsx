@@ -241,8 +241,10 @@ export default function DriverPanel() {
     const [note, setNote] = useState('')
     const [amount, setAmount] = useState('')
     const [saving, setSaving] = useState(false)
-    const [expanded, setExpanded] = useState(false)
+    const [expanded, setExpanded] = useState(false) // top customer reveal
     const touchStartYRef = useRef(null)
+    const [detailsExpanded, setDetailsExpanded] = useState(true) // bottom details sheet
+    const detailsTouchStartYRef = useRef(null)
 
     function onTouchStart(e){
       try{ touchStartYRef.current = e.touches && e.touches.length ? e.touches[0].clientY : null }catch{ touchStartYRef.current = null }
@@ -258,6 +260,22 @@ export default function DriverPanel() {
         }
       }catch{}
       touchStartYRef.current = null
+    }
+
+    function detailsOnTouchStart(e){
+      try{ detailsTouchStartYRef.current = e.touches && e.touches.length ? e.touches[0].clientY : null }catch{ detailsTouchStartYRef.current = null }
+    }
+    function detailsOnTouchEnd(e){
+      try{
+        const startY = detailsTouchStartYRef.current
+        const endY = (e.changedTouches && e.changedTouches.length) ? e.changedTouches[0].clientY : null
+        if (startY!=null && endY!=null){
+          const dy = endY - startY
+          if (dy < -24) setDetailsExpanded(true) // swipe up to expand
+          if (dy > 24) setDetailsExpanded(false) // swipe down to collapse
+        }
+      }catch{}
+      detailsTouchStartYRef.current = null
     }
 
     const areaText = order.customerAddress || order.customerLocation || [order.city, order.orderCountry].filter(Boolean).join(', ') || '—'
@@ -330,32 +348,44 @@ export default function DriverPanel() {
             )}
           </div>
 
-          <div className="order-details-section">
-            <h3 className="section-title">Order Details</h3>
-            <div className="order-details">
-              <div className="info-row">
-                <span className="label">Product:</span>
-                <span className="value">{order.details || 'No details provided'}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Quantity:</span>
-                <span className="value">{order.quantity || 1}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Price:</span>
-                <span className="value price">{fmtPrice(order)}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">City:</span>
-                <span className="value">{order.city || 'Not specified'}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Country:</span>
-                <span className="value">{order.orderCountry || 'Not specified'}</span>
-              </div>
-              <div className="info-row">
-                <span className="label">Created:</span>
-                <span className="value">{fmtDate(order.createdAt)}</span>
+          <div className={`details-sheet ${detailsExpanded ? 'open' : 'closed'}`}>
+            <button
+              type="button"
+              className="details-header"
+              onClick={() => setDetailsExpanded(v => !v)}
+              onTouchStart={detailsOnTouchStart}
+              onTouchEnd={detailsOnTouchEnd}
+              aria-expanded={detailsExpanded}
+            >
+              <span className="section-title" style={{margin:0}}>Order Details</span>
+              <span className={`chevron ${detailsExpanded ? 'up' : 'down'}`} aria-hidden />
+            </button>
+            <div className="details-body">
+              <div className="order-details">
+                <div className="info-row">
+                  <span className="label">Product:</span>
+                  <span className="value">{order.details || 'No details provided'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Quantity:</span>
+                  <span className="value">{order.quantity || 1}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Price:</span>
+                  <span className="value price">{fmtPrice(order)}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">City:</span>
+                  <span className="value">{order.city || 'Not specified'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Country:</span>
+                  <span className="value">{order.orderCountry || 'Not specified'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Created:</span>
+                  <span className="value">{fmtDate(order.createdAt)}</span>
+                </div>
               </div>
             </div>
           </div>

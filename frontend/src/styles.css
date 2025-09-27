@@ -2211,3 +2211,41 @@ a {
 @media (max-width: 420px){
   .customer-line .chip{ max-width: 40%; }
 }
+
+/* Collapsible bottom details sheet */
+.details-sheet{
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  overflow: hidden;
+}
+.details-header{
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  border: 0;
+  cursor: pointer;
+}
+.details-header:active{ opacity: 0.95 }
+.details-header .section-title{ font-size: 16px; font-weight: 800; }
+.chevron{
+  width: 16px; height: 16px; display:inline-block; border-right:2px solid #64748b; border-bottom:2px solid #64748b; transform: rotate(-45deg); transition: transform var(--transition-fast);
+}
+.chevron.up{ transform: rotate(135deg); }
+.chevron.down{ transform: rotate(-45deg); }
+.details-body{
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height var(--transition-medium), opacity var(--transition-medium);
+  padding: 0 14px;
+}
+.details-sheet.open .details-body{
+  max-height: 600px; /* enough for the content */
+  opacity: 1;
+  padding: 14px;
+}
