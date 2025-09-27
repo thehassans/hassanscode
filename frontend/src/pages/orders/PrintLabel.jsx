@@ -70,7 +70,8 @@ export default function PrintLabel(){
   const qty = Number(order.quantity||1)
   const unit = (order.productId?.price != null) ? Number(order.productId.price) : undefined
   const total = (order.total!=null) ? Number(order.total) : (unit!=null ? unit*qty : undefined)
-  const paymentMode = (Number(order.codAmount||0) > 0) ? 'COD' : 'PAID'
+  // Default payment mode to COD unless clearly paid in full
+  const paymentMode = ((Number(order.collectedAmount||0) > 0) && (Number(order.total||0) > 0) && (Number(order.collectedAmount||0) >= Number(order.total||0))) ? 'PAID' : 'COD'
   const driverName = order.deliveryBoy ? `${order.deliveryBoy.firstName||''} ${order.deliveryBoy.lastName||''}`.trim() : '-'
   const codAmount = Number(order.codAmount||0)
   const invoice = String(order.invoiceNumber || order._id).toUpperCase()
@@ -78,10 +79,10 @@ export default function PrintLabel(){
   return (
     <div style={{display:'grid', placeItems:'center', padding:0}}>
       <style>{`
-        @page { size: 6in 4in; margin: 0; }
+        @page { size: 4in 6in; margin: 0; }
         @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none !important; } }
         body, html, #root { background: #fff; }
-        .label-6x4 { width: 6in; height: 4in; box-sizing: border-box; padding: 12px; color: #000; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+        .label-4x6 { width: 4in; height: 6in; box-sizing: border-box; padding: 12px; color: #000; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
         .grid { display: grid; gap: 6px; }
         .row { display:flex; justify-content:space-between; align-items:center; }
         .h { font-weight: 800; }
@@ -93,11 +94,11 @@ export default function PrintLabel(){
         .badge { display:inline-block; padding:2px 6px; border:1px solid #000; border-radius: 4px; font-weight:700; }
         .muted { opacity: .85; }
       `}</style>
-      <div className="label-6x4 grid">
+      <div className="label-4x6 grid">
         {/* Header row: brand and meta */}
         <div className="row">
           <div className="h" style={{display:'flex', alignItems:'center', gap:8}}>
-            <img alt="Logo" src={`${API_BASE}/logo.png`} onError={(e)=>{e.currentTarget.style.display='none'}} style={{height:20}}/>
+            <img alt="BuySial" src={`${API_BASE}/logo.png`} onError={(e)=>{e.currentTarget.style.display='none'}} style={{height:26, objectFit:'contain'}}/>
             <span>BuySial</span>
           </div>
           <div className="grid" style={{justifyItems:'end'}}>
@@ -149,7 +150,7 @@ export default function PrintLabel(){
         </div>
 
         {/* Footer grid: driver, COD, order no, barcode, QR, notes */}
-        <div className="grid" style={{gridTemplateColumns:'1fr 1fr', gap:8}}>
+        <div className="grid" style={{gridTemplateColumns:'1fr', gap:8}}>
           <div className="sec" style={{display:'grid', gap:4}}>
             <div className="h">Assigned Driver</div>
             <div>{driverName || '-'}</div>
@@ -163,11 +164,11 @@ export default function PrintLabel(){
             <div>{invoice}</div>
           </div>
           <div className="sec" style={{display:'grid', gap:2, alignItems:'center', justifyItems:'center'}}>
-            <svg ref={barcodeRef} style={{width:'100%', height:50}}/>
+            <svg ref={barcodeRef} style={{width:'100%', height:46}}/>
             <div style={{fontSize:10, opacity:0.8}}>Short barcode</div>
           </div>
           <div className="sec" style={{display:'grid', gap:4, alignItems:'center', justifyItems:'center'}}>
-            <canvas ref={qrRef} width={110} height={110} />
+            <canvas ref={qrRef} width={100} height={100} />
             <div style={{fontSize:10, opacity:0.8}}>Scan QR to open</div>
           </div>
           <div className="sec" style={{display:'grid', gap:4}}>
