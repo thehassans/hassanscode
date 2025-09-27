@@ -7,26 +7,40 @@ export default function DriverPanel() {
   const [available, setAvailable] = useState([])
   const [loading, setLoading] = useState(false)
   const [loadingAvail, setLoadingAvail] = useState(false)
-  const [city, setCity] = useState('')
-  const [sortBy, setSortBy] = useState('nearest') // nearest, farthest, newest, oldest
+  const [city, setCity] = useState(() => {
+    try { return localStorage.getItem('driver.city') || '' } catch { return '' }
+  })
+  const [sortBy, setSortBy] = useState(() => {
+    try { return localStorage.getItem('driver.sortBy') || 'nearest' } catch { return 'nearest' }
+  }) // nearest, farthest, newest, oldest
+  const [includeAssignedAvail, setIncludeAssignedAvail] = useState(() => {
+    try { return localStorage.getItem('driver.includeAssigned') === 'true' } catch { return false }
+  })
   const [driverLocation, setDriverLocation] = useState(null)
 
   // Get driver's current location
-  useEffect(() => {
-    if (navigator.geolocation) {
+  function refreshLocation(){
+    if (!('geolocation' in navigator)) return
+    try{
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setDriverLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
+          setDriverLocation({ lat: position.coords.latitude, lng: position.coords.longitude })
         },
-        (error) => {
-          console.log('Location access denied:', error)
-        }
+        (error) => { console.log('Location access denied:', error) }
       )
+    }catch{}
+  }
+
+  async function claimOrder(order){
+    try{
+      await apiPost(`/api/orders/${order._id || order.id}/claim`, {})
+      await loadAssigned()
+      await loadAvailable()
+    }catch(e){
+      alert(e?.message || 'Failed to claim order')
     }
-  }, [])
+  }
+  useEffect(() => { refreshLocation() }, [])
 
   async function loadAssigned() {
     setLoading(true)
@@ -43,7 +57,10 @@ export default function DriverPanel() {
   async function loadAvailable() {
     setLoadingAvail(true)
     try {
-      const q = city ? `?city=${encodeURIComponent(city)}` : ''
+      const params = new URLSearchParams()
+      if (city) params.set('city', city)
+      if (includeAssignedAvail) params.set('includeAssigned', 'true')
+      const q = params.toString() ? `?${params.toString()}` : ''
       const data = await apiGet(`/api/orders/driver/available${q}`)
       setAvailable(data.orders || [])
     } catch {
@@ -56,9 +73,12 @@ export default function DriverPanel() {
   useEffect(() => {
     loadAssigned()
   }, [])
-  useEffect(() => {
-    loadAvailable()
-  }, [city])
+  useEffect(() => { loadAvailable() }, [city, includeAssignedAvail])
+
+  // Persist filters and sort
+  useEffect(() => { try { localStorage.setItem('driver.city', city) } catch {} }, [city])
+  useEffect(() => { try { localStorage.setItem('driver.sortBy', sortBy) } catch {} }, [sortBy])
+  useEffect(() => { try { localStorage.setItem('driver.includeAssigned', String(includeAssignedAvail)) } catch {} }, [includeAssignedAvail])
 
   // Real-time updates
   useEffect(() => {
@@ -235,12 +255,13 @@ export default function DriverPanel() {
     }
   }
 
-  const OrderCard = ({ order, showActions = false }) => {
+  const OrderCard = ({ order, showActions = false, onClaim }) => {
     const distance = getOrderDistance(order)
     const [status, setStatus] = useState('') // '', delivered, cancelled, no_response
     const [note, setNote] = useState('')
     const [amount, setAmount] = useState('')
     const [saving, setSaving] = useState(false)
+    const [claiming, setClaiming] = useState(false)
     const [expanded, setExpanded] = useState(false) // top customer reveal
     const touchStartYRef = useRef(null)
     const [detailsExpanded, setDetailsExpanded] = useState(true) // bottom details sheet
@@ -293,8 +314,8 @@ export default function DriverPanel() {
           await apiPost(`/api/orders/${id}/deliver`, payload)
         } else if (status === 'cancelled') {
           await apiPost(`/api/orders/${id}/cancel`, { reason: note || '' })
-        } else if (status === 'no_response') {
-          await apiPost(`/api/orders/${id}/shipment/update`, { shipmentStatus: 'no_response', deliveryNotes: note || '' })
+        } else if (status === 'no_response' || status === 'attempted' || status === 'contacted') {
+          await apiPost(`/api/orders/${id}/shipment/update`, { shipmentStatus: status, deliveryNotes: note || '' })
         }
         await loadAssigned()
         await loadAvailable()
@@ -392,6 +413,8 @@ export default function DriverPanel() {
                 <button type="button" className={`status-option ${status==='delivered' ? 'active' : ''}`} onClick={()=> setStatus('delivered')}>Delivered</button>
                 <button type="button" className={`status-option ${status==='cancelled' ? 'active' : ''}`} onClick={()=> setStatus('cancelled')}>Cancelled</button>
                 <button type="button" className={`status-option ${status==='no_response' ? 'active' : ''}`} onClick={()=> setStatus('no_response')}>No Response</button>
+                <button type="button" className={`status-option ${status==='attempted' ? 'active' : ''}`} onClick={()=> setStatus('attempted')}>Attempted</button>
+                <button type="button" className={`status-option ${status==='contacted' ? 'active' : ''}`} onClick={()=> setStatus('contacted')}>Contacted</button>
               </div>
 
               <div className="status-form" style={{display:'grid', gap:10}}>
@@ -401,6 +424,18 @@ export default function DriverPanel() {
                 <input className="input" type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={e=> setAmount(e.target.value)} />
                 <button className="action-btn deliver-btn" disabled={saving || !status} onClick={saveStatus}>{saving ? 'Saving...' : 'Save Status'}</button>
               </div>
+            </div>
+          )}
+
+          {!showActions && onClaim && (
+            <div className="order-actions" style={{marginTop:10, display:'flex', justifyContent:'flex-end'}}>
+              <button
+                className="action-btn"
+                disabled={claiming}
+                onClick={async ()=>{
+                  try{ setClaiming(true); await onClaim(order) }catch(e){ alert(e?.message||'Failed to claim') }finally{ setClaiming(false) }
+                }}
+              >{claiming ? 'Claiming…' : 'Claim Order'}</button>
             </div>
           )}
         </div>
@@ -440,6 +475,15 @@ export default function DriverPanel() {
             <option value="oldest">Oldest First</option>
           </select>
         </div>
+
+        <div className="toggle-section" style={{display:'inline-flex', alignItems:'center', gap:10}}>
+          <label className="checkbox-label" style={{display:'inline-flex', alignItems:'center', gap:6}}>
+            <input type="checkbox" checked={includeAssignedAvail} onChange={(e)=> setIncludeAssignedAvail(e.target.checked)} />
+            <span>Include assigned in available</span>
+          </label>
+          <button className="btn secondary small" onClick={()=>{ loadAssigned(); loadAvailable() }} title="Refresh lists">↻ Refresh</button>
+          <button className="btn secondary small" onClick={refreshLocation} title="Refresh location">📍 Locate</button>
+        </div>
       </div>
 
       <div className="orders-section">
@@ -474,7 +518,7 @@ export default function DriverPanel() {
             <div className="empty-state">No available orders</div>
           ) : (
             sortedAvailable.map((order) => (
-              <OrderCard key={order._id || order.id} order={order} showActions={false} />
+              <OrderCard key={order._id || order.id} order={order} showActions={false} onClaim={!order.deliveryBoy ? claimOrder : null} />
             ))
           )}
         </div>

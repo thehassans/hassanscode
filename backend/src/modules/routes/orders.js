@@ -310,6 +310,32 @@ router.get('/driver/available', auth, allowRoles('driver'), async (req, res) => 
   res.json({ orders })
 })
 
+// Driver: claim an unassigned order
+router.post('/:id/claim', auth, allowRoles('driver'), async (req, res) => {
+  const { id } = req.params
+  const ord = await Order.findById(id)
+  if (!ord) return res.status(404).json({ message: 'Order not found' })
+  if (ord.deliveryBoy) {
+    if (String(ord.deliveryBoy) === String(req.user.id)) {
+      return res.json({ message: 'Already assigned to you', order: ord })
+    }
+    return res.status(400).json({ message: 'Order already assigned' })
+  }
+  const me = await User.findById(req.user.id).select('country city')
+  if (ord.orderCountry && me?.country && String(ord.orderCountry) !== String(me.country)) {
+    return res.status(400).json({ message: 'Order not in your country' })
+  }
+  if (ord.city && me?.city && String(ord.city).toLowerCase() !== String(me.city).toLowerCase()) {
+    return res.status(400).json({ message: 'Order city does not match your city' })
+  }
+  ord.deliveryBoy = req.user.id
+  if (!ord.shipmentStatus || ord.shipmentStatus === 'pending') ord.shipmentStatus = 'assigned'
+  await ord.save()
+  await ord.populate('productId')
+  emitOrderChange(ord, 'assigned').catch(()=>{})
+  res.json({ message: 'Order claimed', order: ord })
+})
+
 // Mark shipped (admin, user). Decrement product stock if tracked
 router.post('/:id/ship', auth, allowRoles('admin','user'), async (req, res) => {
   const { id } = req.params
@@ -363,10 +389,33 @@ router.post('/:id/ship', auth, allowRoles('admin','user'), async (req, res) => {
 })
 
 // Update shipment fields and status
-router.post('/:id/shipment/update', auth, allowRoles('admin','user','agent'), async (req, res) => {
+router.post('/:id/shipment/update', auth, allowRoles('admin','user','agent','driver'), async (req, res) => {
   const { id } = req.params
   const ord = await Order.findById(id)
   if (!ord) return res.status(404).json({ message: 'Order not found' })
+
+  // Drivers: restricted update scope and permissions
+  if (req.user.role === 'driver') {
+    if (String(ord.deliveryBoy || '') !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Not allowed' })
+    }
+    const { shipmentStatus, deliveryNotes, note } = req.body || {}
+    if (shipmentStatus) {
+      const allowed = new Set(['no_response', 'attempted', 'contacted'])
+      if (!allowed.has(String(shipmentStatus))) {
+        return res.status(400).json({ message: 'Invalid status' })
+      }
+      ord.shipmentStatus = shipmentStatus
+    }
+    if (deliveryNotes != null || note != null) ord.deliveryNotes = (note != null ? note : deliveryNotes)
+    // Recompute balance
+    ord.balanceDue = Math.max(0, (ord.codAmount||0) - (ord.collectedAmount||0) - (ord.shippingFee||0))
+    await ord.save()
+    emitOrderChange(ord, 'shipment_updated').catch(()=>{})
+    return res.json({ message: 'Shipment updated', order: ord })
+  }
+
+  // Non-driver roles retain full update capabilities
   const { shipmentMethod, shipmentStatus, courierName, trackingNumber, deliveryBoy, shippingFee, codAmount, collectedAmount, deliveryNotes, returnReason } = req.body || {}
   if (shipmentMethod) ord.shipmentMethod = shipmentMethod
   if (shipmentStatus) ord.shipmentStatus = shipmentStatus
