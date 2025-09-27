@@ -79,6 +79,7 @@ export default function UserOrders(){
   const [statusFilter, setStatusFilter] = useState('')
   const [shipFilter, setShipFilter] = useState('')
   const [selected, setSelected] = useState(null)
+  const colTemplate = '140px 1.2fr 1fr 1fr 1fr 120px 140px 110px 110px 180px 120px'
 
   const filtered = useMemo(()=>{
     let list = orders.slice()
@@ -95,6 +96,15 @@ export default function UserOrders(){
     if (shipFilter) list = list.filter(o=> String(o.shipmentStatus||'').toLowerCase() === shipFilter)
     return list
   }, [orders, query, statusFilter, shipFilter])
+
+  const totals = useMemo(()=>{
+    let cod = 0, bal = 0
+    for (const o of filtered){
+      cod += Number(o?.codAmount||0)
+      bal += Number(o?.balanceDue||0)
+    }
+    return { cod, bal }
+  }, [filtered])
 
   function shortId(id){ return String(id||'').slice(-6).toUpperCase() }
   function userName(u){ if (!u) return '-'; return `${u.firstName||''} ${u.lastName||''}`.trim() || (u.email||'-') }
@@ -129,15 +139,15 @@ export default function UserOrders(){
       <div className="card" style={{display:'grid'}}>
         <div className="section" style={{display:'grid', gap:8}}>
           <div style={{fontWeight:800}}>Legend</div>
-          <div style={{display:'flex', flexWrap:'wrap', gap:8}}>
+          <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
             {/* Order Status */}
-            <span className="chip" style={{background:'transparent', borderColor:'#f59e0b', color:'#b45309'}}>Order Pending</span>
-            <span className="chip" style={{background:'transparent', borderColor:'#3b82f6', color:'#1d4ed8'}}>Order Shipped</span>
+            <span className="chip" style={{background:'transparent', borderColor:'#f59e0b', color:'#b45309', padding:'2px 8px'}}>Order Pending</span>
+            <span className="chip" style={{background:'transparent', borderColor:'#3b82f6', color:'#1d4ed8', padding:'2px 8px'}}>Order Shipped</span>
             {/* Shipment Status */}
-            <span className="chip" style={{background:'transparent', borderColor:'#f59e0b', color:'#b45309'}}>Shipment Pending</span>
-            <span className="chip" style={{background:'transparent', borderColor:'#3b82f6', color:'#1d4ed8'}}>Assigned / In Transit / Picked Up</span>
-            <span className="chip" style={{background:'transparent', borderColor:'#10b981', color:'#065f46'}}>Delivered</span>
-            <span className="chip" style={{background:'transparent', borderColor:'#ef4444', color:'#991b1b'}}>Returned / Cancelled</span>
+            <span className="chip" style={{background:'transparent', borderColor:'#f59e0b', color:'#b45309', padding:'2px 8px'}}>Shipment Pending</span>
+            <span className="chip" style={{background:'transparent', borderColor:'#3b82f6', color:'#1d4ed8', padding:'2px 8px'}}>Assigned / In Transit / Picked Up</span>
+            <span className="chip" style={{background:'transparent', borderColor:'#10b981', color:'#065f46', padding:'2px 8px'}}>Delivered</span>
+            <span className="chip" style={{background:'transparent', borderColor:'#ef4444', color:'#991b1b', padding:'2px 8px'}}>Returned / Cancelled</span>
           </div>
         </div>
       </div>
@@ -151,47 +161,57 @@ export default function UserOrders(){
           ) : filtered.length === 0 ? (
             <div className="empty-state">No orders found</div>
           ) : (
-            <div className="table responsive">
-              <div className="thead">
-                <div className="tr">
-                  <div className="th">Order</div>
-                  <div className="th">Customer</div>
-                  <div className="th">Product</div>
-                  <div className="th">Agent</div>
-                  <div className="th">Driver</div>
-                  <div className="th">Status</div>
-                  <div className="th">Shipment</div>
-                  <div className="th">COD</div>
-                  <div className="th">Balance</div>
-                  <div className="th">Created</div>
-                  <div className="th" style={{textAlign:'right'}}>Actions</div>
+            <div className="table responsive" style={{border:'1px solid var(--border)', borderRadius:8, overflow:'hidden'}}>
+              <div className="thead" style={{background:'rgba(59,130,246,0.08)', borderBottom:'1px solid var(--border)'}}>
+                <div className="tr" style={{display:'grid', gridTemplateColumns: colTemplate}}>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Order</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Customer</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Product</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Agent</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Driver</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Status</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Shipment</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)', textAlign:'right'}}>COD</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)', textAlign:'right'}}>Balance</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Created</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, textAlign:'right'}}>Actions</div>
                 </div>
               </div>
               <div className="tbody">
-                {filtered.map(o => {
+                {filtered.map((o, idx) => {
                   const id = String(o._id||o.id)
                   const ordNo = o.invoiceNumber ? `#${o.invoiceNumber}` : shortId(id)
                   const agentName = (o.createdBy && o.createdBy.role !== 'user') ? userName(o.createdBy) : (o.createdBy?.role==='user' ? 'Owner' : '-')
                   const driverName = o.deliveryBoy ? userName(o.deliveryBoy) : '-'
                   const productName = o.productId?.name || '-'
                   return (
-                    <div className="tr" key={id}>
-                      <div className="td">{ordNo}</div>
-                      <div className="td">{o.customerName||'-'}<div className="helper">{o.customerPhone||''}</div></div>
-                      <div className="td">{productName}<div className="helper">Qty: {Math.max(1, Number(o.quantity||1))}</div></div>
-                      <div className="td">{agentName}</div>
-                      <div className="td">{driverName}</div>
-                      <div className="td"><StatusBadge status={o.status} /></div>
-                      <div className="td"><StatusBadge status={o.shipmentStatus} kind='shipment' /></div>
-                      <div className="td">{Number(o.codAmount||0).toFixed(2)}</div>
-                      <div className="td">{Number(o.balanceDue||0).toFixed(2)}</div>
-                      <div className="td">{o.createdAt? new Date(o.createdAt).toLocaleString(): ''}</div>
-                      <div className="td" style={{textAlign:'right'}}>
+                    <div className="tr" key={id} style={{display:'grid', gridTemplateColumns: colTemplate, borderBottom:'1px solid var(--border)', background: idx%2? 'transparent':'var(--panel)'}}>
+                      <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{ordNo}</div>
+                      <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{o.customerName||'-'}<div className="helper">{o.customerPhone||''}</div></div>
+                      <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{productName}<div className="helper">Qty: {Math.max(1, Number(o.quantity||1))}</div></div>
+                      <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{agentName}</div>
+                      <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{driverName}</div>
+                      <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}><StatusBadge status={o.status} /></div>
+                      <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}><StatusBadge status={o.shipmentStatus} kind='shipment' /></div>
+                      <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{Number(o.codAmount||0).toFixed(2)}</div>
+                      <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{Number(o.balanceDue||0).toFixed(2)}</div>
+                      <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{o.createdAt? new Date(o.createdAt).toLocaleString(): ''}</div>
+                      <div className="td" style={{padding:'10px 12px', textAlign:'right'}}>
                         <button className="btn light small" onClick={()=> setSelected(o)}>View</button>
                       </div>
                     </div>
                   )
                 })}
+              </div>
+              {/* Footer Totals */}
+              <div className="tfoot" style={{borderTop:'1px solid var(--border)'}}>
+                <div className="tr" style={{display:'grid', gridTemplateColumns: colTemplate, background:'rgba(0,0,0,0.02)'}}>
+                  <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}} colSpan={7}>Totals</div>
+                  <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{totals.cod.toFixed(2)}</div>
+                  <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{totals.bal.toFixed(2)}</div>
+                  <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}></div>
+                  <div className="td" style={{padding:'10px 12px', textAlign:'right'}}></div>
+                </div>
               </div>
             </div>
           )}
