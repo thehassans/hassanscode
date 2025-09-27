@@ -372,7 +372,19 @@ router.post('/send-text', auth, async (req, res) => {
       const chains = (global.__waSendChains = global.__waSendChains || new Map());
       const key = String(jid)
       const last = chains.get(key) || Promise.resolve()
-      const p = last.then(() => waService.sendText(jid, text))
+      const attemptSend = async (attempt)=>{
+        try{ return await waService.sendText(jid, text) }catch(e){
+          const msg = String(e?.message || '')
+          const transient = msg.startsWith('send-transient:') || msg.includes('wa-not-connected')
+          if (transient && attempt < 2){
+            const delay = 1500 * (attempt + 1)
+            await new Promise(r => setTimeout(r, delay))
+            return attemptSend(attempt+1)
+          }
+          throw e
+        }
+      }
+      const p = last.then(() => attemptSend(0))
       chains.set(key, p.finally(() => { if (chains.get(key) === p) chains.delete(key) }))
       const r = await p;
       res.json(r);
@@ -448,7 +460,19 @@ router.post('/send-voice', auth, multerSingle('voice'), async (req, res) => {
     const chains = (global.__waSendChains = global.__waSendChains || new Map());
     const key = String(jid)
     const last = chains.get(key) || Promise.resolve()
-    const p = last.then(() => waService.sendVoice(jid, req.file))
+    const attemptVoice = async (attempt)=>{
+      try{ return await waService.sendVoice(jid, req.file) }catch(e){
+        const msg = String(e?.message || '')
+        const transient = (msg.includes('wa-not-connected') || msg.startsWith('send-transient:'))
+        if (transient && attempt < 2){
+          const delay = 1500 * (attempt + 1)
+          await new Promise(r => setTimeout(r, delay))
+          return attemptVoice(attempt+1)
+        }
+        throw e
+      }
+    }
+    const p = last.then(() => attemptVoice(0))
     chains.set(key, p.finally(() => { if (chains.get(key) === p) chains.delete(key) }))
     const r = await p
     res.json(r);
