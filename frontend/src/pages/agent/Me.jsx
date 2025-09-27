@@ -145,6 +145,21 @@ export default function AgentMe() {
     }
   },[])
 
+  // Live: refresh orders when workspace orders change so earnings stay in sync
+  useEffect(()=>{
+    let socket
+    try{
+      const token = localStorage.getItem('token') || ''
+      socket = io(API_BASE || undefined, { path:'/socket.io', transports:['polling'], upgrade:false, withCredentials:true, auth:{ token } })
+      const reload = async ()=>{ try{ const r = await apiGet('/api/orders'); setOrders(Array.isArray(r?.orders)? r.orders:[]) }catch{} }
+      socket.on('orders.changed', reload)
+    }catch{}
+    return ()=>{
+      try{ socket && socket.off('orders.changed') }catch{}
+      try{ socket && socket.disconnect() }catch{}
+    }
+  },[])
+
   // Load managers for approver option
   async function loadManagers(){
     try{ const res = await apiGet('/api/users/my-managers?sameCountry=false'); setManagers(Array.isArray(res?.users)? res.users:[]) }catch{ setManagers([]) }

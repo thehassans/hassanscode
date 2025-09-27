@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { apiGet } from '../../api.js'
+import { API_BASE, apiGet } from '../../api.js'
+import { io } from 'socket.io-client'
 
 function StatusBadge({ status, kind='status' }){
   const s = String(status||'').toLowerCase()
@@ -74,12 +75,12 @@ function OrderTimeline({ order }){
 }
 
 export default function UserOrders(){
-  const { orders, loading, error } = useOrders()
+  const { orders, loading, error, setOrders } = useOrders()
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [shipFilter, setShipFilter] = useState('')
   const [selected, setSelected] = useState(null)
-  const colTemplate = '140px 1.2fr 1fr 1fr 1fr 120px 140px 110px 110px 180px 120px'
+  const colTemplate = '140px 1.2fr 1fr 110px 130px 130px 1fr 1fr 120px 140px 110px 110px 180px 120px'
 
   const filtered = useMemo(()=>{
     let list = orders.slice()
@@ -98,16 +99,36 @@ export default function UserOrders(){
   }, [orders, query, statusFilter, shipFilter])
 
   const totals = useMemo(()=>{
-    let cod = 0, bal = 0
+    const COMM = 0.12
+    let cod = 0, bal = 0, priceSum = 0, upc = 0, tot = 0
     for (const o of filtered){
+      const qty = Math.max(1, Number(o?.quantity||1))
+      const price = (o?.total!=null ? Number(o.total) : Number(o?.productId?.price||0) * qty)
+      const delivered = String(o?.shipmentStatus||'').toLowerCase()==='delivered'
       cod += Number(o?.codAmount||0)
       bal += Number(o?.balanceDue||0)
+      priceSum += price
+      const comm = price * COMM
+      upc += delivered ? 0 : comm
+      tot += delivered ? comm : 0
     }
-    return { cod, bal }
+    return { cod, bal, priceSum, upc, tot }
   }, [filtered])
 
   function shortId(id){ return String(id||'').slice(-6).toUpperCase() }
   function userName(u){ if (!u) return '-'; return `${u.firstName||''} ${u.lastName||''}`.trim() || (u.email||'-') }
+
+  // Live updates: refresh on order changes in workspace
+  useEffect(()=>{
+    let socket
+    try{
+      const token = localStorage.getItem('token') || ''
+      socket = io(API_BASE || undefined, { path:'/socket.io', transports:['polling'], upgrade:false, withCredentials:true, auth:{ token } })
+      const reload = async ()=>{ try{ const r = await apiGet('/api/orders'); setOrders(Array.isArray(r?.orders)? r.orders:[]) }catch{} }
+      socket.on('orders.changed', reload)
+    }catch{}
+    return ()=>{ try{ socket && socket.off('orders.changed') }catch{}; try{ socket && socket.disconnect() }catch{} }
+  }, [setOrders])
 
   return (
     <div className="section" style={{display:'grid', gap:12}}>
@@ -135,22 +156,7 @@ export default function UserOrders(){
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="card" style={{display:'grid'}}>
-        <div className="section" style={{display:'grid', gap:8}}>
-          <div style={{fontWeight:800}}>Legend</div>
-          <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
-            {/* Order Status */}
-            <span className="chip" style={{background:'transparent', borderColor:'#f59e0b', color:'#b45309', padding:'2px 8px'}}>Order Pending</span>
-            <span className="chip" style={{background:'transparent', borderColor:'#3b82f6', color:'#1d4ed8', padding:'2px 8px'}}>Order Shipped</span>
-            {/* Shipment Status */}
-            <span className="chip" style={{background:'transparent', borderColor:'#f59e0b', color:'#b45309', padding:'2px 8px'}}>Shipment Pending</span>
-            <span className="chip" style={{background:'transparent', borderColor:'#3b82f6', color:'#1d4ed8', padding:'2px 8px'}}>Assigned / In Transit / Picked Up</span>
-            <span className="chip" style={{background:'transparent', borderColor:'#10b981', color:'#065f46', padding:'2px 8px'}}>Delivered</span>
-            <span className="chip" style={{background:'transparent', borderColor:'#ef4444', color:'#991b1b', padding:'2px 8px'}}>Returned / Cancelled</span>
-          </div>
-        </div>
-      </div>
+      {/* Legend removed as per request */}
 
       <div className="card" style={{display:'grid'}}>
         <div className="section" style={{paddingBottom:0}}>
@@ -167,6 +173,9 @@ export default function UserOrders(){
                   <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Order</div>
                   <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Customer</div>
                   <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Product</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)', textAlign:'right'}}>Price</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)', textAlign:'right'}}>Upcoming 12%</div>
+                  <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)', textAlign:'right'}}>Total 12%</div>
                   <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Agent</div>
                   <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Driver</div>
                   <div className="th" style={{padding:'10px 12px', fontWeight:800, borderRight:'1px solid var(--border)'}}>Status</div>
@@ -184,11 +193,18 @@ export default function UserOrders(){
                   const agentName = (o.createdBy && o.createdBy.role !== 'user') ? userName(o.createdBy) : (o.createdBy?.role==='user' ? 'Owner' : '-')
                   const driverName = o.deliveryBoy ? userName(o.deliveryBoy) : '-'
                   const productName = o.productId?.name || '-'
+                  const qty = Math.max(1, Number(o?.quantity||1))
+                  const price = (o?.total!=null ? Number(o.total) : Number(o?.productId?.price||0) * qty)
+                  const delivered = String(o?.shipmentStatus||'').toLowerCase()==='delivered'
+                  const comm = price * 0.12
                   return (
                     <div className="tr" key={id} style={{display:'grid', gridTemplateColumns: colTemplate, borderBottom:'1px solid var(--border)', background: idx%2? 'transparent':'var(--panel)'}}>
                       <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{ordNo}</div>
                       <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{o.customerName||'-'}<div className="helper">{o.customerPhone||''}</div></div>
                       <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{productName}<div className="helper">Qty: {Math.max(1, Number(o.quantity||1))}</div></div>
+                      <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{price.toFixed(2)}</div>
+                      <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{(!delivered ? comm : 0).toFixed(2)}</div>
+                      <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{(delivered ? comm : 0).toFixed(2)}</div>
                       <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{agentName}</div>
                       <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}>{driverName}</div>
                       <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}><StatusBadge status={o.status} /></div>
@@ -206,7 +222,13 @@ export default function UserOrders(){
               {/* Footer Totals */}
               <div className="tfoot" style={{borderTop:'1px solid var(--border)'}}>
                 <div className="tr" style={{display:'grid', gridTemplateColumns: colTemplate, background:'rgba(0,0,0,0.02)'}}>
-                  <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}} colSpan={7}>Totals</div>
+                  <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}} colSpan={3}>Totals</div>
+                  <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{totals.priceSum.toFixed(2)}</div>
+                  <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{totals.upc.toFixed(2)}</div>
+                  <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{totals.tot.toFixed(2)}</div>
+                  <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}></div>
+                  <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}></div>
+                  <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}></div>
                   <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{totals.cod.toFixed(2)}</div>
                   <div className="td" style={{padding:'10px 12px', textAlign:'right', borderRight:'1px solid var(--border)'}}>{totals.bal.toFixed(2)}</div>
                   <div className="td" style={{padding:'10px 12px', borderRight:'1px solid var(--border)'}}></div>
