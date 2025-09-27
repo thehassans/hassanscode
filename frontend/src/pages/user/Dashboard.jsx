@@ -52,10 +52,12 @@ export default function UserDashboard(){
   })
   const me = JSON.parse(localStorage.getItem('me')||'{}')
   const [analytics, setAnalytics] = useState(null)
+  const [salesByCountry, setSalesByCountry] = useState({ KSA:0, Oman:0, UAE:0, Bahrain:0, Other:0 })
   const [orders, setOrders] = useState([])
   async function load(){
     try{ setAnalytics(await apiGet('/api/orders/analytics/last7days')) }catch(_e){ setAnalytics({ days: [], totals:{} }) }
     try{ setMetrics(await apiGet('/api/reports/user-metrics')) }catch(_e){ console.error('Failed to fetch metrics') }
+    try{ setSalesByCountry(await apiGet('/api/reports/user-metrics/sales-by-country')) }catch(_e){ setSalesByCountry({ KSA:0, Oman:0, UAE:0, Bahrain:0, Other:0 }) }
     try{ const res = await apiGet('/api/orders'); setOrders(Array.isArray(res?.orders) ? res.orders : []) }catch(_e){ setOrders([]) }
   }
   useEffect(()=>{ load() },[])
@@ -113,6 +115,24 @@ export default function UserDashboard(){
         <MetricCard title="Total Deposit" value={metrics.totalDeposit} icon="📥" />
         <MetricCard title="Total Withdraw" value={metrics.totalWithdraw} icon="📤" />
         <MetricCard title="Total Expense" value={metrics.totalExpense} icon="💸" />
+      </div>
+      {/* Sales by Country */}
+      <div className="card" style={{marginTop:12}}>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8}}>
+          <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <div style={{width:32,height:32,borderRadius:8,background:'linear-gradient(135deg,#4f46e5,#06b6d4)',display:'grid',placeItems:'center',color:'#fff',fontWeight:800}}>🌍</div>
+            <div>
+              <div style={{fontWeight:800}}>Sales by Country</div>
+              <div className="helper">Workspace delivered sales totals</div>
+            </div>
+          </div>
+        </div>
+        <div className="grid" style={{gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12}}>
+          <MetricCard title="Sales in KSA" value={salesByCountry.KSA||0} icon="🇸🇦" />
+          <MetricCard title="Sales in Oman" value={salesByCountry.Oman||0} icon="🇴🇲" />
+          <MetricCard title="Sales in UAE" value={salesByCountry.UAE||0} icon="🇦🇪" />
+          <MetricCard title="Sales in Bahrain" value={salesByCountry.Bahrain||0} icon="🇧🇭" />
+        </div>
       </div>
       <div style={{marginTop:12}}>
         <Chart analytics={analytics} />

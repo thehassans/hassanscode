@@ -831,4 +831,28 @@ router.get('/user-metrics', auth, allowRoles('user'), async (req, res) => {
   }
 });
 
+// Sales by country for user dashboard (workspace scoped)
+router.get('/user-metrics/sales-by-country', auth, allowRoles('user'), async (req, res) => {
+  try {
+    const ownerId = req.user.id
+    const agents = await User.find({ role: 'agent', createdBy: ownerId }, { _id: 1 }).lean()
+    const managers = await User.find({ role: 'manager', createdBy: ownerId }, { _id: 1 }).lean()
+    const creatorIds = [ownerId, ...agents.map(a => a._id), ...managers.map(m => m._id)]
+    const rows = await Order.aggregate([
+      { $match: { createdBy: { $in: creatorIds }, shipmentStatus: 'delivered' } },
+      { $group: { _id: '$orderCountry', sum: { $sum: { $subtract: [ '$total', { $ifNull: ['$discount', 0] } ] } } } }
+    ])
+    const acc = { KSA: 0, Oman: 0, UAE: 0, Bahrain: 0, Other: 0 }
+    for (const r of rows){
+      const key = String(r._id || '').trim()
+      if (acc.hasOwnProperty(key)) acc[key] += Number(r.sum || 0)
+      else acc.Other += Number(r.sum || 0)
+    }
+    res.json(acc)
+  } catch (error) {
+    console.error('Error fetching sales-by-country:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 export default router;
