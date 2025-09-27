@@ -64,7 +64,9 @@ const corsOptions = {
   },
   credentials: true,
 }
-app.use(cors(corsOptions));
+// Apply CORS only to API routes to avoid blocking SPA routes like /login
+app.options('/api/*', cors(corsOptions))
+app.use('/api', cors(corsOptions))
 app.use(express.json({ limit: '5mb' }));
 app.use(morgan('dev'));
 
