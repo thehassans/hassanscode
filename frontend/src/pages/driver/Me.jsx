@@ -1,12 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { apiGet } from '../../api.js'
+import { API_BASE, apiGet, apiPost } from '../../api.js'
+import { io } from 'socket.io-client'
+import { useToast } from '../../ui/Toast.jsx'
 
 export default function DriverMe() {
+  const toast = useToast()
   const [me, setMe] = useState(() => {
     try { return JSON.parse(localStorage.getItem('me') || '{}') } catch { return {} }
   })
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
+  // Remittance state
+  const [managers, setManagers] = useState([])
+  const [remForm, setRemForm] = useState({ managerId:'', amount:'', fromDate:'', toDate:'', note:'' })
+  const [remLoading, setRemLoading] = useState(false)
+  const [remittances, setRemittances] = useState([])
+  const [remSummary, setRemSummary] = useState({ totalDeliveredOrders: 0, totalCollectedAmount: 0, currency: '' })
 
   useEffect(() => {
     let alive = true
@@ -17,6 +26,59 @@ export default function DriverMe() {
     })()
     return () => { alive = false }
   }, [])
+
+  // Socket: live updates for remittance acceptance
+  useEffect(()=>{
+    let socket
+    try{
+      const token = localStorage.getItem('token') || ''
+      socket = io(API_BASE || undefined, { path:'/socket.io', transports:['polling'], upgrade:false, withCredentials:true, auth:{ token } })
+      socket.on('remittance.accepted', ()=> { try{ loadRemittances() }catch{} })
+    }catch{}
+    return ()=>{
+      try{ socket && socket.off('remittance.accepted') }catch{}
+      try{ socket && socket.disconnect() }catch{}
+    }
+  },[])
+
+  // Remittance helpers
+  async function loadManagers(){
+    try{ const res = await apiGet('/api/users/my-managers'); setManagers(Array.isArray(res?.users)? res.users:[]) }catch{ setManagers([]) }
+  }
+  async function loadRemittances(){
+    try{ const res = await apiGet('/api/finance/remittances'); setRemittances(Array.isArray(res?.remittances)? res.remittances:[]) }catch{ setRemittances([]) }
+  }
+  async function loadRemittanceSummary(range){
+    try{
+      const params = new URLSearchParams()
+      if (range?.fromDate) params.set('fromDate', range.fromDate)
+      if (range?.toDate) params.set('toDate', range.toDate)
+      const res = await apiGet(`/api/finance/remittances/summary?${params.toString()}`)
+      setRemSummary({
+        totalDeliveredOrders: Number(res?.totalDeliveredOrders||0),
+        totalCollectedAmount: Number(res?.totalCollectedAmount||0),
+        currency: res?.currency || ''
+      })
+    }catch{ setRemSummary({ totalDeliveredOrders:0, totalCollectedAmount:0, currency:'' }) }
+  }
+  async function submitRemittance(){
+    setRemLoading(true)
+    try{
+      const payload = { managerId: remForm.managerId, amount: Number(remForm.amount||0) }
+      if (remForm.fromDate) payload.fromDate = remForm.fromDate
+      if (remForm.toDate) payload.toDate = remForm.toDate
+      if ((remForm.note||'').trim()) payload.note = remForm.note.trim()
+      await apiPost('/api/finance/remittances', payload)
+      toast.success('Remittance submitted and pending acceptance')
+      setRemForm({ managerId:'', amount:'', fromDate:'', toDate:'', note:'' })
+      await loadRemittances()
+    }catch(e){
+      alert(e?.message || 'Failed to submit remittance')
+    }finally{ setRemLoading(false) }
+  }
+
+  // Initial load for remittance UI
+  useEffect(()=>{ try{ loadManagers(); loadRemittances(); loadRemittanceSummary({}) }catch{} },[])
 
   // Currency helpers
   const PHONE_CODE_TO_CCY = { '+966':'SAR', '+971':'AED', '+968':'OMR', '+973':'BHD' }
@@ -60,6 +122,75 @@ export default function DriverMe() {
       <div style={{ display: 'grid', gap: 6 }}>
         <div style={{ fontWeight: 800, fontSize: 20 }}>Driver Profile</div>
         <div className="helper">Your profile and delivery stats</div>
+      </div>
+
+      {/* Remittance to Manager */}
+      <div className="card" style={{display:'grid', gap:10}}>
+        <div className="card-header">
+          <div className="card-title">Send Amount to Manager</div>
+          <div className="card-subtitle">Choose manager, enter amount, and optionally a date range.</div>
+        </div>
+        <div className="section" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:8}}>
+          <select className="input" value={remForm.managerId} onChange={e=> setRemForm(f=>({ ...f, managerId: e.target.value }))} title="Choose your manager">
+            <option value="">-- Select Manager (same country) --</option>
+            {managers.map(m => (
+              <option key={String(m._id||m.id)} value={String(m._id||m.id)}>{`${m.firstName||''} ${m.lastName||''}`}</option>
+            ))}
+          </select>
+          <div className="input" style={{display:'flex', alignItems:'center', gap:8, paddingRight:10}}>
+            <input style={{flex:1, minWidth:0}} type="number" min="0" step="0.01" placeholder="Amount" value={remForm.amount} onChange={e=> setRemForm(f=>({ ...f, amount: e.target.value }))} />
+            <span style={{opacity:0.9, whiteSpace:'nowrap'}}>{remSummary.currency || ''}</span>
+          </div>
+          <input className="input" type="date" value={remForm.fromDate} onChange={e=> { const v=e.target.value; setRemForm(f=>({ ...f, fromDate: v })); loadRemittanceSummary({ ...remForm, fromDate: v }) }} />
+          <input className="input" type="date" value={remForm.toDate} onChange={e=> { const v=e.target.value; setRemForm(f=>({ ...f, toDate: v })); loadRemittanceSummary({ ...remForm, toDate: v }) }} />
+        </div>
+        <div className="section" style={{display:'grid', gap:8}}>
+          <div style={{display:'flex', gap:12, flexWrap:'wrap'}}>
+            <span className="badge">Total Deliveries: {remSummary.totalDeliveredOrders}</span>
+            <span className="badge">Total Collected: {remSummary.currency} {remSummary.totalCollectedAmount.toFixed(2)}</span>
+          </div>
+          <textarea className="input" placeholder="Note (optional)" value={remForm.note} onChange={e=> setRemForm(f=>({ ...f, note: e.target.value }))} rows={2} />
+          <div style={{display:'flex', justifyContent:'flex-end'}}>
+            <button className="btn" disabled={remLoading || !remForm.managerId || remForm.amount==='' } onClick={submitRemittance}>{remLoading? 'Submitting…':'Submit Remittance'}</button>
+          </div>
+        </div>
+      </div>
+
+      {/* My Remittances */}
+      <div className="card" style={{display:'grid', gap:8}}>
+        <div className="card-header">
+          <div className="card-title">My Remittances</div>
+        </div>
+        <div className="section" style={{overflowX:'auto'}}>
+          {remittances.length === 0 ? (
+            <div className="empty-state">No remittances yet</div>
+          ) : (
+            <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
+              <thead>
+                <tr>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Date</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Manager</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Amount</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Period</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Delivered</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {remittances.map(r => (
+                  <tr key={String(r._id||r.id)} style={{borderTop:'1px solid var(--border)'}}>
+                    <td style={{padding:'8px 10px'}}>{new Date(r.createdAt).toLocaleString()}</td>
+                    <td style={{padding:'8px 10px'}}>{`${r.manager?.firstName||''} ${r.manager?.lastName||''}`}</td>
+                    <td style={{padding:'8px 10px'}}>{`${r.currency||''} ${Number(r.amount||0).toFixed(2)}`}</td>
+                    <td style={{padding:'8px 10px'}}>{r.fromDate? new Date(r.fromDate).toLocaleDateString() : '-'} — {r.toDate? new Date(r.toDate).toLocaleDateString() : '-'}</td>
+                    <td style={{padding:'8px 10px'}}>{r.totalDeliveredOrders||0}</td>
+                    <td style={{padding:'8px 10px'}}>{r.status==='accepted' ? <span className="badge" style={{borderColor:'#10b981', color:'#10b981'}}>Delivered</span> : <span className="badge" style={{borderColor:'#f59e0b', color:'#f59e0b'}}>Pending</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {/* Profile */}
