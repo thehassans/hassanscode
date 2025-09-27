@@ -231,7 +231,7 @@ export default function DriverPanel() {
 
   const OrderCard = ({ order, showActions = false, onClaim }) => {
     const distance = getOrderDistance(order)
-    const [status, setStatus] = useState('') // '', delivered, cancelled, no_response
+    const [status, setStatus] = useState(() => String(order?.shipmentStatus || '').toLowerCase()) // '', delivered, cancelled, no_response
     const [note, setNote] = useState('')
     const [amount, setAmount] = useState('')
     const [saving, setSaving] = useState(false)
@@ -240,6 +240,11 @@ export default function DriverPanel() {
     const touchStartYRef = useRef(null)
     const [detailsExpanded, setDetailsExpanded] = useState(false) // bottom details sheet (initially closed)
     const detailsTouchStartYRef = useRef(null)
+
+    // Keep local status in sync with live order updates
+    useEffect(() => {
+      try{ setStatus(String(order?.shipmentStatus || '').toLowerCase()) }catch{}
+    }, [order?.shipmentStatus])
 
     function onTouchStart(e){
       try{ touchStartYRef.current = e.touches && e.touches.length ? e.touches[0].clientY : null }catch{ touchStartYRef.current = null }
@@ -296,7 +301,6 @@ export default function DriverPanel() {
           toast.info(`Shipment ${label} (#${String(id).slice(-6)})`)
         }
         await loadAssigned()
-        setStatus('')
         setNote('')
         setAmount('')
       } catch (e) {
@@ -429,8 +433,8 @@ export default function DriverPanel() {
               </svg>
             </button>
             <button className="inline-icon-btn call light" onClick={()=> callPhone(order.customerPhone)} title="Call" aria-label="Call" style={{width:44, height:44, borderRadius:12}}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M22 16.92a16 16 0 0 1-6.87-1.53 16.38 16.38 0 0 1-5.3-3.53A16.38 16.38 0 0 1 6.3 6.56 16 16 0 0 1 4.78 0h0a2 2 0 0 1 2 2v3a2 2 0 0 0 .55 1.38l1.1 1.1a2 2 0 0 1 .24 2.47l-.5.82a2 2 0 0 0 .45 2.54l3.17 3.17a2 2 0 0 0 2.54.45l.82-.5a2 2 0 0 1 2.47.24l1.1 1.1A2 2 0 0 0 19 20h3a2 2 0 0 1 2 2h0"/>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
               </svg>
             </button>
             <button className="inline-icon-btn sms light" onClick={()=> openSMS(order.customerPhone)} title="SMS" aria-label="SMS" style={{width:44, height:44, borderRadius:12}}>
@@ -440,9 +444,8 @@ export default function DriverPanel() {
               </svg>
             </button>
             <button className="inline-icon-btn wa light" onClick={()=> openWhatsApp(order.customerPhone)} title="WhatsApp" aria-label="WhatsApp" style={{width:44, height:44, borderRadius:12}}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M21 11.5a8.5 8.5 0 1 1-3.05-6.53L21 3l-.97 3.53A8.5 8.5 0 0 1 21 11.5z"/>
-                <path d="M8 9.5c1.5 3 3.5 5 6.5 6.5"/>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M20.52 3.48A11.82 11.82 0 0 0 .155 18.07L0 24l5.93-1.56A11.82 11.82 0 0 0 12.02 24c6.56 0 11.87-5.31 11.87-11.87 0-3.18-1.24-6.16-3.37-8.39zm-8.5 19.33c-1.95 0-3.85-.51-5.52-1.47l-.4-.24-3.51.93.94-3.43-.26-.42a9.7 9.7 0 0 1-1.47-5.17c0-5.38 4.37-9.75 9.75-9.75 2.61 0 5.06 1.02 6.91 2.87a9.65 9.65 0 0 1 2.84 6.88c0 5.38-4.37 9.75-9.75 9.75zm5.74-7.3c-.31-.16-1.82-.91-2.1-1.02-.28-.1-.48-.16-.68.16-.2.3-.78.96-.96 1.16-.18.2-.36.22-.66.08-.3-.14-1.29-.47-2.46-1.49-.91-.81-1.53-1.8-1.71-2.1-.18-.3-.02-.46.14-.62.14-.14.3-.36.46-.56.15-.2.2-.3.3-.5.1-.2.05-.38-.03-.56-.08-.16-.72-1.73-.98-2.37-.26-.64-.52-.55-.72-.56-.18-.01-.4-.02-.61-.02-.21 0-.56.08-.86.38-.3.3-1.13 1.1-1.13 2.68 0 1.58 1.12 3.1 1.28 3.31.16.2 2.22 3.4 5.35 4.76.75.33 1.34.53 1.8.68.76.24 1.45.21 2.01.13.61-.09 1.87-.77 2.13-1.52.26-.75.26-1.36.18-1.56-.08-.2-.29-.31-.6-.47z"/>
               </svg>
             </button>
           </div>
