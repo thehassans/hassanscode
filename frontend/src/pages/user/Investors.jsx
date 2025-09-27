@@ -71,7 +71,7 @@ export default function Investors(){
     let socket
     try{
       const token = localStorage.getItem('token') || ''
-      socket = io(API_BASE || undefined, { path: '/socket.io', transports: ['polling','websocket'], auth: { token }, withCredentials: true })
+      socket = io(API_BASE || undefined, { path: '/socket.io', transports: ['polling'], upgrade: false, auth: { token }, withCredentials: true })
       const refresh = ()=>{ loadManagers(q) }
       socket.on('investor.created', refresh)
       socket.on('investor.deleted', refresh)

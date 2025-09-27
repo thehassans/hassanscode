@@ -74,7 +74,7 @@ export default function Drivers(){
     let socket
     try{
       const token = localStorage.getItem('token') || ''
-      socket = io(API_BASE || undefined, { path:'/socket.io', transports:['polling','websocket'], auth: { token }, withCredentials: true })
+      socket = io(API_BASE || undefined, { path:'/socket.io', transports:['polling'], upgrade:false, auth: { token }, withCredentials: true })
       const refresh = ()=>{ loadDrivers(q) }
       socket.on('driver.created', refresh)
       socket.on('driver.deleted', refresh)

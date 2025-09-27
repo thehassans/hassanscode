@@ -171,7 +171,7 @@ export default function SubmitOrder(){
     let socket
     try{
       const token = localStorage.getItem('token') || ''
-      socket = io(API_BASE || undefined, { path:'/socket.io', transports:['websocket','polling'], auth: { token } })
+      socket = io(API_BASE || undefined, { path:'/socket.io', transports:['polling'], upgrade:false, auth: { token }, withCredentials: true })
       const refresh = ()=>{ load() }
       socket.on('orders.changed', refresh)
     }catch{}

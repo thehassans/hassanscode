@@ -731,8 +731,8 @@ export default function WhatsAppInbox() {
   useEffect(() => {
     const token = localStorage.getItem('token') || ''
     const socket = io(API_BASE || undefined, {
-      // Prefer long-polling first; upgrade to websocket when supported by proxy
-      transports: ['polling', 'websocket'],
+      transports: ['polling'],
+      upgrade: false,
       withCredentials: true,
       path: '/socket.io',
       auth: { token },

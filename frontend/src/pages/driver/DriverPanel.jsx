@@ -59,7 +59,9 @@ export default function DriverPanel() {
       const token = localStorage.getItem('token') || ''
       socket = io(API_BASE || undefined, {
         path: '/socket.io',
-        transports: ['websocket', 'polling'],
+        transports: ['polling'],
+        upgrade: false,
+        withCredentials: true,
         auth: { token },
       })
       const refresh = () => { try { loadAssigned() } catch {} }

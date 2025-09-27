@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { apiGet, apiPost, API_BASE } from '../../api.js'
-import io from 'socket.io-client'
+import { io } from 'socket.io-client'
 
 function formatWaNumber(n){
   try{
@@ -80,8 +80,8 @@ export default function WhatsAppConnect(){
   useEffect(()=>{
     const token = localStorage.getItem('token') || ''
     const socket = io(API_BASE || undefined, {
-      // Prefer long-polling first; upgrade to websocket when supported by proxy
-      transports: ['polling', 'websocket'],
+      transports: ['polling'],
+      upgrade: false,
       withCredentials: true,
       path: '/socket.io',
       auth: { token },

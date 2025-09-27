@@ -41,7 +41,7 @@ export default function Managers(){
     let socket
     try{
       const token = localStorage.getItem('token') || ''
-      socket = io(API_BASE || undefined, { path: '/socket.io', transports: ['polling','websocket'], auth: { token }, withCredentials: true })
+      socket = io(API_BASE || undefined, { path: '/socket.io', transports: ['polling'], upgrade: false, auth: { token }, withCredentials: true })
       const refresh = ()=>{ loadManagers(q) }
       socket.on('manager.created', refresh)
       socket.on('manager.deleted', refresh)
