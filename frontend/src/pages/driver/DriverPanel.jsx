@@ -14,6 +14,11 @@ export default function DriverPanel() {
     try { return localStorage.getItem('driver.sortBy') || 'nearest' } catch { return 'nearest' }
   }) // nearest, farthest, newest, oldest
   const [driverLocation, setDriverLocation] = useState(null)
+  // Remittance state
+  const [managers, setManagers] = useState([])
+  const [remForm, setRemForm] = useState({ managerId:'', amount:'', fromDate:'', toDate:'', note:'' })
+  const [remLoading, setRemLoading] = useState(false)
+  const [remittances, setRemittances] = useState([])
 
   // Get driver's current location
   function refreshLocation(){
@@ -26,6 +31,29 @@ export default function DriverPanel() {
         (error) => { console.log('Location access denied:', error) }
       )
     }catch{}
+  }
+
+  // --- Remittance helpers ---
+  async function loadManagers(){
+    try{ const res = await apiGet('/api/users/my-managers'); setManagers(Array.isArray(res?.users)? res.users:[]) }catch{ setManagers([]) }
+  }
+  async function loadRemittances(){
+    try{ const res = await apiGet('/api/finance/remittances'); setRemittances(Array.isArray(res?.remittances)? res.remittances:[]) }catch{ setRemittances([]) }
+  }
+  async function submitRemittance(){
+    setRemLoading(true)
+    try{
+      const payload = { managerId: remForm.managerId, amount: Number(remForm.amount||0) }
+      if (remForm.fromDate) payload.fromDate = remForm.fromDate
+      if (remForm.toDate) payload.toDate = remForm.toDate
+      if ((remForm.note||'').trim()) payload.note = remForm.note.trim()
+      await apiPost('/api/finance/remittances', payload)
+      toast.success('Remittance submitted and pending acceptance')
+      setRemForm({ managerId:'', amount:'', fromDate:'', toDate:'', note:'' })
+      await loadRemittances()
+    }catch(e){
+      alert(e?.message || 'Failed to submit remittance')
+    }finally{ setRemLoading(false) }
   }
 
   useEffect(() => { refreshLocation() }, [])
@@ -44,6 +72,8 @@ export default function DriverPanel() {
 
   useEffect(() => {
     loadAssigned()
+    // Load managers and remittances initially
+    try{ loadManagers(); loadRemittances() }catch{}
   }, [])
   // city no longer affects list; kept for future filtering
 
@@ -67,10 +97,12 @@ export default function DriverPanel() {
       const refresh = () => { try { loadAssigned() } catch {} }
       socket.on('order.assigned', refresh)
       socket.on('order.updated', refresh)
+      socket.on('remittance.accepted', ()=> { try{ loadRemittances() }catch{} })
     } catch {}
     return () => {
       try { socket && socket.off('order.assigned') } catch {}
       try { socket && socket.off('order.updated') } catch {}
+      try { socket && socket.off('remittance.accepted') } catch {}
       try { socket && socket.disconnect() } catch {}
     }
   }, [])
@@ -508,6 +540,64 @@ export default function DriverPanel() {
         <p className="panel-subtitle">Manage your delivery orders efficiently</p>
       </div>
 
+      {/* Remittance to Manager */}
+      <div className="orders-section">
+        <div className="section-header">
+          <h2 className="section-title">Send Amount to Manager</h2>
+        </div>
+        <div className="card" style={{display:'grid', gap:10}}>
+          <div className="section" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:8}}>
+            <select className="input" value={remForm.managerId} onChange={e=> setRemForm(f=>({ ...f, managerId: e.target.value }))} title="Choose your manager">
+              <option value="">-- Select Manager (same country) --</option>
+              {managers.map(m => (
+                <option key={String(m._id||m.id)} value={String(m._id||m.id)}>{`${m.firstName||''} ${m.lastName||''}`}</option>
+              ))}
+            </select>
+            <input className="input" type="number" min="0" step="0.01" placeholder="Amount" value={remForm.amount} onChange={e=> setRemForm(f=>({ ...f, amount: e.target.value }))} />
+            <input className="input" type="date" value={remForm.fromDate} onChange={e=> setRemForm(f=>({ ...f, fromDate: e.target.value }))} />
+            <input className="input" type="date" value={remForm.toDate} onChange={e=> setRemForm(f=>({ ...f, toDate: e.target.value }))} />
+          </div>
+          <div className="section" style={{display:'grid', gap:8}}>
+            <textarea className="input" placeholder="Note (optional)" value={remForm.note} onChange={e=> setRemForm(f=>({ ...f, note: e.target.value }))} rows={2} />
+            <div style={{display:'flex', justifyContent:'flex-end'}}>
+              <button className="btn" disabled={remLoading || !remForm.managerId || remForm.amount==='' } onClick={submitRemittance}>{remLoading? 'Submitting…':'Submit Remittance'}</button>
+            </div>
+          </div>
+        </div>
+        <div className="card" style={{marginTop:10}}>
+          <div className="card-header"><div className="card-title">My Remittances</div></div>
+          <div className="section" style={{overflowX:'auto'}}>
+            {remittances.length === 0 ? (
+              <div className="empty-state">No remittances yet</div>
+            ) : (
+              <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
+                <thead>
+                  <tr>
+                    <th style={{textAlign:'left', padding:'8px 10px'}}>Date</th>
+                    <th style={{textAlign:'left', padding:'8px 10px'}}>Manager</th>
+                    <th style={{textAlign:'left', padding:'8px 10px'}}>Amount</th>
+                    <th style={{textAlign:'left', padding:'8px 10px'}}>Period</th>
+                    <th style={{textAlign:'left', padding:'8px 10px'}}>Delivered</th>
+                    <th style={{textAlign:'left', padding:'8px 10px'}}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {remittances.map(r => (
+                    <tr key={String(r._id||r.id)} style={{borderTop:'1px solid var(--border)'}}>
+                      <td style={{padding:'8px 10px'}}>{new Date(r.createdAt).toLocaleString()}</td>
+                      <td style={{padding:'8px 10px'}}>{`${r.manager?.firstName||''} ${r.manager?.lastName||''}`}</td>
+                      <td style={{padding:'8px 10px'}}>{`${r.currency||''} ${Number(r.amount||0).toFixed(2)}`}</td>
+                      <td style={{padding:'8px 10px'}}>{r.fromDate? new Date(r.fromDate).toLocaleDateString() : '-'} — {r.toDate? new Date(r.toDate).toLocaleDateString() : '-'}</td>
+                      <td style={{padding:'8px 10px'}}>{r.totalDeliveredOrders||0}</td>
+                      <td style={{padding:'8px 10px'}}>{r.status==='accepted' ? <span className="badge" style={{borderColor:'#10b981', color:'#10b981'}}>Delivered</span> : <span className="badge" style={{borderColor:'#f59e0b', color:'#f59e0b'}}>Pending</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="orders-section">
         <div className="section-header">

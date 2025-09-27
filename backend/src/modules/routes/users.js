@@ -364,6 +364,22 @@ router.get('/managers', auth, allowRoles('admin','user'), async (req, res) => {
   res.json({ users })
 })
 
+// Driver: list managers in my workspace (optionally same country)
+router.get('/my-managers', auth, allowRoles('driver'), async (req, res) => {
+  try{
+    const me = await User.findById(req.user.id).select('createdBy country')
+    const ownerId = me?.createdBy
+    if (!ownerId) return res.json({ users: [] })
+    const base = { role: 'manager', createdBy: ownerId }
+    const same = String(req.query.sameCountry || 'true').toLowerCase() === 'true'
+    if (same && me?.country) base.country = me.country
+    const users = await User.find(base, '-password').sort({ firstName: 1, lastName: 1 })
+    return res.json({ users })
+  }catch(err){
+    return res.status(500).json({ message: 'Failed to load managers' })
+  }
+})
+
 // Create manager (admin, user)
 router.post('/managers', auth, allowRoles('admin','user'), async (req, res) => {
   const { firstName, lastName, email, password, phone, canCreateAgents=false, canManageProducts=false, canCreateOrders=false } = req.body || {}

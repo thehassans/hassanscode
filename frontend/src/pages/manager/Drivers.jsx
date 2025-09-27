@@ -9,10 +9,22 @@ export default function ManagerDrivers(){
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [filters, setFilters] = useState({ country:'', city:'' })
   const [q, setQ] = useState('')
+  const [remit, setRemit] = useState({ items: [], loading: false })
 
   function onFilterChange(e){
     const { name, value } = e.target
     setFilters(f => ({ ...f, [name]: value }))
+  }
+
+  async function loadRemittances(){
+    setRemit(r=>({ ...r, loading: true }))
+    try{ const res = await apiGet('/api/finance/remittances'); setRemit({ items: Array.isArray(res?.remittances)? res.remittances:[], loading: false }) }
+    catch{ setRemit({ items: [], loading: false }) }
+  }
+  useEffect(()=>{ loadRemittances() },[])
+
+  async function acceptRemittance(id){
+    try{ await apiPost(`/api/finance/remittances/${id}/accept`, {}); await loadRemittances() }catch(e){ alert(e?.message || 'Failed to accept') }
   }
 
   async function loadDrivers(query=''){
@@ -38,7 +50,7 @@ export default function ManagerDrivers(){
   useEffect(()=>{ const id=setTimeout(()=> loadDrivers(q), 300); return ()=> clearTimeout(id) },[q])
   useEffect(()=>{ loadOrders() },[filters.country, filters.city])
 
-  // Real-time updates: listen for workspace events to refresh orders and drivers
+  // Real-time updates: listen for workspace events to refresh orders, drivers, and remittances
   useEffect(()=>{
     let socket
     try{
@@ -46,14 +58,17 @@ export default function ManagerDrivers(){
       socket = io(API_BASE || undefined, { path: '/socket.io', transports: ['polling'], upgrade: false, auth: { token }, withCredentials: true })
       const refreshOrders = ()=>{ loadOrders() }
       const refreshDrivers = ()=>{ loadDrivers(q) }
+      const refreshRemit = ()=>{ loadRemittances() }
       socket.on('orders.changed', refreshOrders)
       socket.on('driver.created', refreshDrivers)
       socket.on('driver.deleted', refreshDrivers)
+      socket.on('remittance.created', refreshRemit)
     }catch{}
     return ()=>{
       try{ socket && socket.off('orders.changed') }catch{}
       try{ socket && socket.off('driver.created') }catch{}
       try{ socket && socket.off('driver.deleted') }catch{}
+      try{ socket && socket.off('remittance.created') }catch{}
       try{ socket && socket.disconnect() }catch{}
     }
   },[q, filters.country, filters.city])
@@ -88,6 +103,53 @@ export default function ManagerDrivers(){
           <div className="page-title gradient heading-blue">Drivers</div>
           <div className="page-subtitle">Assign unassigned orders to drivers by city. Filters are optional; choose country/city to narrow results.</div>
         </div>
+
+      {/* Remittances from Drivers */}
+      <div className="card" style={{display:'grid', gap:12}}>
+        <div className="card-header">
+          <div className="card-title">Remittance Requests</div>
+        </div>
+        <div className="section" style={{overflowX:'auto'}}>
+          {remit.loading ? (
+            <div>Loading…</div>
+          ) : remit.items.length === 0 ? (
+            <div className="empty-state">No remittance requests</div>
+          ) : (
+            <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
+              <thead>
+                <tr>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Driver</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Country</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Amount</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Period</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Delivered</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Status</th>
+                  <th style={{textAlign:'right', padding:'8px 10px'}}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {remit.items.map(r => (
+                  <tr key={String(r._id||r.id)} style={{borderTop:'1px solid var(--border)'}}>
+                    <td style={{padding:'8px 10px'}}>{`${r.driver?.firstName||''} ${r.driver?.lastName||''}`}</td>
+                    <td style={{padding:'8px 10px'}}>{r.country||'-'}</td>
+                    <td style={{padding:'8px 10px'}}>{`${r.currency||''} ${Number(r.amount||0).toFixed(2)}`}</td>
+                    <td style={{padding:'8px 10px'}}>{r.fromDate? new Date(r.fromDate).toLocaleDateString() : '-'} — {r.toDate? new Date(r.toDate).toLocaleDateString() : '-'}</td>
+                    <td style={{padding:'8px 10px'}}>{r.totalDeliveredOrders||0}</td>
+                    <td style={{padding:'8px 10px'}}>{r.status}</td>
+                    <td style={{padding:'8px 10px', textAlign:'right'}}>
+                      {r.status==='pending' ? (
+                        <button className="btn" onClick={()=> acceptRemittance(String(r._id||r.id))}>Accept</button>
+                      ) : (
+                        <span className="badge" style={{borderColor:'#10b981', color:'#10b981'}}>Accepted {r.acceptedAt? new Date(r.acceptedAt).toLocaleString(): ''}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
         <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
           <input className="input" placeholder="Search drivers" value={q} onChange={e=>setQ(e.target.value)} style={{maxWidth:240}}/>
           <input className="input" placeholder="Country (e.g., UAE, Oman, KSA, Bahrain)" name="country" value={filters.country} onChange={onFilterChange} style={{maxWidth:220}} />
