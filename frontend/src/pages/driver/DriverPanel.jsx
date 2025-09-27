@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { API_BASE, apiGet, apiPost } from '../../api'
 import { io } from 'socket.io-client'
+import { useToast } from '../../ui/Toast.jsx'
 
 export default function DriverPanel() {
+  const toast = useToast()
   const [assigned, setAssigned] = useState([])
   const [loading, setLoading] = useState(false)
   const [city, setCity] = useState(() => {
@@ -284,10 +286,14 @@ export default function DriverPanel() {
           if (note.trim()) payload.note = note.trim()
           if (amount !== '' && !Number.isNaN(Number(amount))) payload.collectedAmount = Math.max(0, Number(amount))
           await apiPost(`/api/orders/${id}/deliver`, payload)
+          toast.success(`Order delivered (#${String(id).slice(-6)})`)
         } else if (status === 'cancelled') {
           await apiPost(`/api/orders/${id}/cancel`, { reason: note || '' })
+          toast.warn(`Order cancelled (#${String(id).slice(-6)})`)
         } else if (status === 'no_response' || status === 'attempted' || status === 'contacted' || status === 'picked_up') {
           await apiPost(`/api/orders/${id}/shipment/update`, { shipmentStatus: status, deliveryNotes: note || '' })
+          const label = status === 'picked_up' ? 'picked up' : (status.replace('_',' '))
+          toast.info(`Shipment ${label} (#${String(id).slice(-6)})`)
         }
         await loadAssigned()
         setStatus('')

@@ -13,14 +13,15 @@ async function emitOrderChange(ord, action = 'updated'){
   try{
     const io = getIO()
     const orderId = String(ord?._id || '')
+    const status = String(ord?.shipmentStatus || ord?.status || '')
     // Notify assigned driver
     if (ord?.deliveryBoy){
       const room = `user:${String(ord.deliveryBoy)}`
       const event = (action === 'assigned') ? 'order.assigned' : 'order.updated'
-      try{ io.to(room).emit(event, { orderId, action, order: ord }) }catch{}
+      try{ io.to(room).emit(event, { orderId, action, status, order: ord }) }catch{}
     }
     // Notify the order creator directly as well (e.g., agent who submitted the order)
-    try{ io.to(`user:${String(ord.createdBy)}`).emit('orders.changed', { orderId, action }) }catch{}
+    try{ io.to(`user:${String(ord.createdBy)}`).emit('orders.changed', { orderId, action, status }) }catch{}
     // Compute workspace owner for broadcast
     let ownerId = null
     try{
@@ -28,7 +29,7 @@ async function emitOrderChange(ord, action = 'updated'){
       ownerId = (creator?.role === 'user') ? String(ord.createdBy) : (creator?.createdBy ? String(creator.createdBy) : String(ord.createdBy))
     }catch{}
     if (ownerId){
-      try{ io.to(`workspace:${ownerId}`).emit('orders.changed', { orderId, action }) }catch{}
+      try{ io.to(`workspace:${ownerId}`).emit('orders.changed', { orderId, action, status }) }catch{}
     }
   }catch{ /* ignore socket errors */ }
 }
@@ -402,11 +403,14 @@ router.post('/:id/shipment/update', auth, allowRoles('admin','user','agent','dri
     }
     const { shipmentStatus, deliveryNotes, note } = req.body || {}
     if (shipmentStatus) {
-      const allowed = new Set(['no_response', 'attempted', 'contacted'])
+      const allowed = new Set(['no_response', 'attempted', 'contacted', 'picked_up'])
       if (!allowed.has(String(shipmentStatus))) {
         return res.status(400).json({ message: 'Invalid status' })
       }
       ord.shipmentStatus = shipmentStatus
+      if (shipmentStatus === 'picked_up') {
+        try{ ord.pickedUpAt = new Date() }catch{}
+      }
     }
     if (deliveryNotes != null || note != null) ord.deliveryNotes = (note != null ? note : deliveryNotes)
     // Recompute balance

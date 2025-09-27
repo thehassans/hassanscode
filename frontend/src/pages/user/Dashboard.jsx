@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import MetricCard from '../../components/MetricCard.jsx'
 import Chart from '../../components/Chart.jsx'
-import { apiGet } from '../../api.js'
+import { API_BASE, apiGet } from '../../api.js'
+import { io } from 'socket.io-client'
+import { useToast } from '../../ui/Toast.jsx'
 
 const OrderStatusPie = ({ metrics }) => {
   const data = [
@@ -35,6 +37,7 @@ const OrderStatusPie = ({ metrics }) => {
 };
 
 export default function UserDashboard(){
+  const toast = useToast()
   const [metrics, setMetrics] = useState({
     totalSales: 0,
     totalOrders: 0,
@@ -49,12 +52,38 @@ export default function UserDashboard(){
   })
   const me = JSON.parse(localStorage.getItem('me')||'{}')
   const [analytics, setAnalytics] = useState(null)
+  async function load(){
+    try{ setAnalytics(await apiGet('/api/orders/analytics/last7days')) }catch(_e){ setAnalytics({ days: [], totals:{} }) }
+    try{ setMetrics(await apiGet('/api/reports/user-metrics')) }catch(_e){ console.error('Failed to fetch metrics') }
+  }
+  useEffect(()=>{ load() },[])
+  // Live updates via socket
   useEffect(()=>{
-    (async ()=>{
-      try{ setAnalytics(await apiGet('/api/orders/analytics/last7days')) }catch(_e){ setAnalytics({ days: [], totals:{} }) }
-      try{ setMetrics(await apiGet('/api/reports/user-metrics')) }catch(_e){ console.error('Failed to fetch metrics') }
-    })()
-  },[])
+    let socket
+    try{
+      const token = localStorage.getItem('token') || ''
+      socket = io(API_BASE || undefined, { path: '/socket.io', transports: ['websocket','polling'], auth: { token } })
+      socket.on('orders.changed', (payload={})=>{
+        load()
+        try{
+          const { orderId, action, status } = payload
+          let msg = null
+          if (action === 'delivered') msg = `Order #${String(orderId||'').slice(-6)} delivered`
+          else if (action === 'assigned') msg = `Order #${String(orderId||'').slice(-6)} assigned`
+          else if (action === 'cancelled') msg = `Order #${String(orderId||'').slice(-6)} cancelled`
+          else if (action === 'shipment_updated'){
+            const label = (status === 'picked_up') ? 'picked up' : (String(status||'').replace('_',' '))
+            msg = `Shipment ${label} (#${String(orderId||'').slice(-6)})`
+          }
+          if (msg) toast.info(msg)
+        }catch{}
+      })
+    }catch{}
+    return ()=>{
+      try{ socket && socket.off('orders.changed') }catch{}
+      try{ socket && socket.disconnect() }catch{}
+    }
+  },[toast])
   return (
     <div className="container">
       <div className="page-header">

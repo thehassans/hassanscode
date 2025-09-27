@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { API_BASE, apiGet } from '../../api'
 import { io } from 'socket.io-client'
+import { useToast } from '../../ui/Toast.jsx'
 
 export default function AgentDashboard(){
   const navigate = useNavigate()
+  const toast = useToast()
   const me = useMemo(()=>{
     try{ return JSON.parse(localStorage.getItem('me')||'{}') }catch{ return {} }
   },[])
@@ -40,14 +42,27 @@ export default function AgentDashboard(){
     try{
       const token = localStorage.getItem('token') || ''
       socket = io(API_BASE || undefined, { path: '/socket.io', transports: ['websocket','polling'], auth: { token } })
-      const refresh = ()=>{ load() }
-      socket.on('orders.changed', refresh)
+      socket.on('orders.changed', (payload={})=>{
+        load()
+        try{
+          const { orderId, action, status } = payload
+          let msg = null
+          if (action === 'delivered') msg = `Order #${String(orderId||'').slice(-6)} delivered`
+          else if (action === 'assigned') msg = `Order #${String(orderId||'').slice(-6)} assigned`
+          else if (action === 'cancelled') msg = `Order #${String(orderId||'').slice(-6)} cancelled`
+          else if (action === 'shipment_updated'){
+            const label = (status === 'picked_up') ? 'picked up' : (String(status||'').replace('_',' '))
+            msg = `Shipment ${label} (#${String(orderId||'').slice(-6)})`
+          }
+          if (msg) toast.info(msg)
+        }catch{}
+      })
     }catch{}
     return ()=>{
       try{ socket && socket.off('orders.changed') }catch{}
       try{ socket && socket.disconnect() }catch{}
     }
-  },[])
+  },[toast])
 
   // Derived metrics
   const ordersSubmitted = ordersSubmittedOverride != null ? ordersSubmittedOverride : orders.length
