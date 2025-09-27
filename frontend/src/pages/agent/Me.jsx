@@ -66,41 +66,37 @@ export default function AgentMe() {
   const [wallet, setWallet] = useState({ byCurrency: {}, totalPKR: 0 })
 
   // Calculate total earnings in PKR (same logic as Dashboard)
-  const totalPKR = useMemo(() => {
-    if (!orders.length) return 0
-    const shipped = orders.filter((o) => (o?.status || '').toLowerCase() === 'shipped')
-    const commissionPct = 0.08
-    const valueOf = (o) => (o?.productId?.price || 0) * Math.max(1, Number(o?.quantity || 1))
-    const baseOf = (o) => o?.productId?.baseCurrency || 'SAR'
-
-    function commissionByCurrency(list) {
-      const sums = { AED: 0, OMR: 0, SAR: 0, BHD: 0 }
-      for (const o of list) {
-        const cur = ['AED', 'OMR', 'SAR', 'BHD'].includes(baseOf(o)) ? baseOf(o) : 'SAR'
-        sums[cur] += valueOf(o) * commissionPct
-      }
-      return sums
+  const earnings = useMemo(() => {
+    const list = orders || []
+    const commissionPct = 0.12
+    const valueOf = (o) => {
+      if (o && o.total != null && !Number.isNaN(Number(o.total))) return Number(o.total)
+      const price = Number(o?.productId?.price || 0)
+      const qty = Math.max(1, Number(o?.quantity || 1))
+      return price * qty
     }
+    const baseOf = (o) => (['AED','OMR','SAR','BHD'].includes(String(o?.productId?.baseCurrency))) ? o.productId.baseCurrency : 'SAR'
 
-    const totalByCur = commissionByCurrency(shipped)
-
-    // FX: PKR conversion (same as Dashboard)
     const defaultFx = { AED: 76, OMR: 726, SAR: 72, BHD: 830 }
     let fx = defaultFx
-    try {
-      const saved = JSON.parse(localStorage.getItem('fx_pkr') || 'null')
-      if (saved && typeof saved === 'object') fx = { ...defaultFx, ...saved }
-    } catch {}
+    try{ const saved = JSON.parse(localStorage.getItem('fx_pkr') || 'null'); if (saved && typeof saved === 'object') fx = { ...defaultFx, ...saved } }catch{}
 
-    const toPKR = (sums) =>
-      Math.round(
-        (sums.AED || 0) * fx.AED +
-          (sums.OMR || 0) * fx.OMR +
-          (sums.SAR || 0) * fx.SAR +
-          (sums.BHD || 0) * fx.BHD
-      )
+    const isDelivered = (o) => String(o?.shipmentStatus||'').toLowerCase() === 'delivered'
+    const isCancelled = (o) => ['cancelled','returned'].includes(String(o?.shipmentStatus||'').toLowerCase())
 
-    return toPKR(totalByCur)
+    let deliveredCommissionPKR = 0
+    let upcomingCommissionPKR = 0
+    for (const o of list){
+      if (isCancelled(o)) continue
+      const val = valueOf(o) * commissionPct
+      const rate = fx[baseOf(o)] || 0
+      const pkr = val * rate
+      if (isDelivered(o)) deliveredCommissionPKR += pkr
+      else upcomingCommissionPKR += pkr
+    }
+    deliveredCommissionPKR = Math.round(deliveredCommissionPKR)
+    upcomingCommissionPKR = Math.round(upcomingCommissionPKR)
+    return { deliveredCommissionPKR, upcomingCommissionPKR }
   }, [orders])
 
   useEffect(() => {
@@ -110,7 +106,6 @@ export default function AgentMe() {
         const r = await apiGet('/api/users/me')
         if (!alive) return
         setMe(r?.user || {})
-        setAvailability(r?.user?.availability || 'available')
       } catch {}
       try {
         const m = await apiGet('/api/users/agents/me/performance')
@@ -122,7 +117,7 @@ export default function AgentMe() {
         })
       } catch {}
       try {
-        const ordersRes = await apiGet('/api/orders/agent/me')
+        const ordersRes = await apiGet('/api/orders')
         if (!alive) return
         setOrders(ordersRes?.orders || [])
       } catch {}
@@ -506,14 +501,16 @@ export default function AgentMe() {
               <div style={{ fontWeight: 800 }}>Wallet Balance</div>
             </div>
             <div style={{ display: 'grid', gap: 4 }}>
-              <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--success)' }}>
-                PKR {totalPKR.toLocaleString()} {/* earnings projection */}
-              </div>
-              <div className="helper" style={{ fontSize: 12 }}>
-                Total earnings from {perf.ordersSubmitted || 0} orders (8% commission)
-              </div>
-              <div className="helper" style={{ fontSize: 12 }}>
-                Remittance Wallet: PKR {(wallet.totalPKR||0).toLocaleString()} (sent)
+              <div style={{ display:'grid', gap:4 }}>
+                <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--success)' }}>
+                  Total Income (12%): PKR {(earnings.deliveredCommissionPKR||0).toLocaleString()}
+                </div>
+                <div className="helper" style={{ fontSize: 12 }}>
+                  Upcoming Income (undelivered): PKR {(earnings.upcomingCommissionPKR||0).toLocaleString()}
+                </div>
+                <div className="helper" style={{ fontSize: 12 }}>
+                  Paid Out: PKR {(wallet.totalPKR||0).toLocaleString()} • Available Wallet: PKR {Math.max(0, (earnings.deliveredCommissionPKR||0) - (wallet.totalPKR||0)).toLocaleString()}
+                </div>
               </div>
             </div>
           </div>
@@ -544,9 +541,10 @@ export default function AgentMe() {
           <input className="input" type="number" min="0" step="0.01" placeholder="Amount (PKR)" value={remReq.amount} onChange={e=> setRemReq(r=>({ ...r, amount: e.target.value }))} />
         </div>
         <div className="section" style={{display:'grid', gap:8}}>
+          <div className="helper">Available Wallet: PKR {Math.max(0, (earnings.deliveredCommissionPKR||0) - (wallet.totalPKR||0)).toLocaleString()}</div>
           <textarea className="input" placeholder="Note (optional)" value={remReq.note} onChange={e=> setRemReq(r=>({ ...r, note: e.target.value }))} rows={2} />
           <div style={{display:'flex', justifyContent:'flex-end'}}>
-            <button className="btn" disabled={remBusy || !remReq.amount || (remReq.approverRole==='manager' && !remReq.approverId)} onClick={submitAgentRemit}>{remBusy? 'Submitting…':'Request Money'}</button>
+            <button className="btn" disabled={remBusy || !remReq.amount || (remReq.approverRole==='manager' && !remReq.approverId) || (Number(remReq.amount||0) > Math.max(0, (earnings.deliveredCommissionPKR||0) - (wallet.totalPKR||0)))} onClick={submitAgentRemit}>{remBusy? 'Submitting…':'Request Money'}</button>
           </div>
         </div>
       </div>

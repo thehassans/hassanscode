@@ -1,4 +1,4 @@
-import express from 'express'
+﻿import express from 'express'
 import { auth, allowRoles } from '../middleware/auth.js'
 import Expense from '../models/Expense.js'
 import Order from '../models/Order.js'
@@ -13,6 +13,18 @@ const router = express.Router()
 router.post('/expenses', auth, allowRoles('admin','user','agent'), async (req, res) => {
   const { title, category, amount, currency, notes, incurredAt } = req.body || {}
   if (!title || amount == null) return res.status(400).json({ message: 'Missing title or amount' })
+  const doc = new Expense({
+    title,
+    category,
+    amount: Math.max(0, Number(amount||0)),
+    currency: currency||'SAR',
+    notes,
+    incurredAt: incurredAt ? new Date(incurredAt) : new Date(),
+    createdBy: req.user.id,
+  })
+  await doc.save()
+  return res.status(201).json({ message: 'Expense created', expense: doc })
+})
 
 // --- Agent Remittances (Agent -> Approver: user or manager) ---
 // Create agent remit request
@@ -32,6 +44,26 @@ router.post('/agent-remittances', auth, allowRoles('agent'), async (req, res) =>
       if (String(approver._id) !== String(ownerId)) return res.status(403).json({ message: 'Approver must be your workspace owner' })
     } else if (role === 'manager'){
       if (String(approver.createdBy) !== String(ownerId)) return res.status(403).json({ message: 'Manager not in your workspace' })
+    }
+    // Validate amount against available wallet (delivered commissions at 12% minus sent payouts)
+    const fx = { AED: 76, OMR: 726, SAR: 72, BHD: 830 }
+    const orders = await Order.find({ createdBy: req.user.id, shipmentStatus: 'delivered' }).populate('productId','price baseCurrency quantity')
+    let deliveredCommissionPKR = 0
+    for (const o of orders){
+      const totalVal = (o.total!=null ? Number(o.total) : (Number(o?.productId?.price||0) * Math.max(1, Number(o?.quantity||1))))
+      const cur = ['AED','OMR','SAR','BHD'].includes(String(o?.productId?.baseCurrency)) ? o.productId.baseCurrency : 'SAR'
+      const rate = fx[cur] || 0
+      deliveredCommissionPKR += totalVal * 0.12 * rate
+    }
+    // Sum of already sent payouts
+    const sentRows = await AgentRemit.aggregate([
+      { $match: { agent: new (await import('mongoose')).default.Types.ObjectId(req.user.id), status: 'sent' } },
+      { $group: { _id: '$currency', total: { $sum: { $ifNull: ['$amount', 0] } } } }
+    ])
+    const totalSentPKR = sentRows.reduce((s,r)=> s + (r?._id==='PKR' ? Number(r.total||0) : 0), 0)
+    const available = Math.max(0, Math.round(deliveredCommissionPKR) - totalSentPKR)
+    if (Number(amount||0) > available){
+      return res.status(400).json({ message: `Amount exceeds available wallet. Available: PKR ${available}` })
     }
     const doc = new AgentRemit({
       agent: req.user.id,
@@ -58,7 +90,7 @@ router.get('/agent-remittances', auth, allowRoles('agent','manager','user'), asy
     if (req.user.role === 'agent') match.agent = req.user.id
     if (req.user.role === 'manager') match = { approver: req.user.id, approverRole: 'manager' }
     if (req.user.role === 'user') match = { approver: req.user.id, approverRole: 'user' }
-    const items = await AgentRemit.find(match).sort({ createdAt: -1 }).populate('agent','firstName lastName email')
+    const items = await AgentRemit.find(match).sort({ createdAt: -1 }).populate('agent','firstName lastName email phone')
     return res.json({ remittances: items })
   }catch(err){
     return res.status(500).json({ message: 'Failed to load agent remittances' })
@@ -117,10 +149,7 @@ router.get('/agent-remittances/wallet', auth, allowRoles('agent'), async (req, r
     return res.status(500).json({ message: 'Failed to load wallet' })
   }
 })
-  const doc = new Expense({ title, category, amount: Math.max(0, Number(amount||0)), currency: currency||'SAR', notes, incurredAt: incurredAt ? new Date(incurredAt) : new Date(), createdBy: req.user.id })
-  await doc.save()
-  res.status(201).json({ message: 'Expense created', expense: doc })
-})
+ 
 
 // List expenses (admin => all; user => own+agents; agent => own)
 router.get('/expenses', auth, allowRoles('admin','user','agent'), async (req, res) => {
@@ -195,8 +224,6 @@ router.get('/transactions', auth, allowRoles('admin','user'), async (req, res) =
   res.json({ transactions: tx, totals })
 })
 
-export default router
-
 // --- Remittances (Driver -> Manager) ---
 // Helper: currency by country
 function currencyFromCountry(country){
@@ -205,12 +232,12 @@ function currencyFromCountry(country){
   return map[key] || ''
 }
 
-// List remittances in scope
+// List remittances in scope (Driver -> Manager)
 router.get('/remittances', auth, allowRoles('admin','user','manager','driver'), async (req, res) => {
   try{
     let match = {}
     if (req.user.role === 'admin'){
-      // no scoping
+      // no extra scoping
     } else if (req.user.role === 'user'){
       match.owner = req.user.id
     } else if (req.user.role === 'manager'){
@@ -218,10 +245,14 @@ router.get('/remittances', auth, allowRoles('admin','user','manager','driver'), 
     } else if (req.user.role === 'driver'){
       match.driver = req.user.id
     }
-    const items = await Remittance.find(match).sort({ createdAt: -1 }).populate('driver','firstName lastName email country').populate('manager','firstName lastName email country')
-    res.json({ remittances: items })
+    const items = await Remittance
+      .find(match)
+      .sort({ createdAt: -1 })
+      .populate('driver','firstName lastName email country')
+      .populate('manager','firstName lastName email country')
+    return res.json({ remittances: items })
   }catch(err){
-    res.status(500).json({ message: 'Failed to list remittances' })
+    return res.status(500).json({ message: 'Failed to list remittances' })
   }
 })
 
@@ -311,3 +342,6 @@ router.get('/remittances/summary', auth, allowRoles('driver'), async (req, res) 
     return res.status(500).json({ message: 'Failed to load summary' })
   }
 })
+
+export default router
+

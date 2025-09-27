@@ -18,6 +18,7 @@ import AgentDashboard from './pages/agent/Dashboard.jsx'
 import ManagerDashboard from './pages/manager/Dashboard.jsx'
 import ManagerDrivers from './pages/manager/Drivers.jsx'
 import ManagerOrders from './pages/manager/Orders.jsx'
+import ManagerFinance from './pages/manager/Finance.jsx'
 import AgentInhouseProducts from './pages/agent/AgentInhouseProducts.jsx'
 import InvestorDashboard from './pages/investor/Dashboard.jsx'
 import InvestorLayout from './layout/InvestorLayout.jsx'
@@ -197,6 +198,7 @@ export default function App() {
         <Route path="agents" element={<Agents />} />
         <Route path="drivers" element={<ManagerDrivers />} />
         <Route path="orders" element={<ManagerOrders />} />
+        <Route path="finance" element={<ManagerFinance />} />
         <Route path="inhouse-products" element={<InhouseProducts />} />
       </Route>
 
