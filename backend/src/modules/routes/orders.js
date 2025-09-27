@@ -40,6 +40,9 @@ router.post('/', auth, allowRoles('admin','user','agent','manager'), async (req,
     shipmentMethod, courierName, trackingNumber, deliveryBoy, shippingFee, codAmount, collectedAmount, total, discount, preferredTiming } = req.body || {}
   if (!customerPhone || !customerLocation || !details) return res.status(400).json({ message: 'Missing required fields' })
 
+// Get a single order by ID (for label printing, detail views)
+ 
+
   // Managers may be restricted by permission
   if (req.user.role === 'manager'){
     const mgr = await User.findById(req.user.id).select('managerPermissions')
@@ -231,6 +234,38 @@ router.get('/', auth, allowRoles('admin','user','agent','manager'), async (req, 
     .populate('deliveryBoy', 'firstName lastName email')
     .populate('createdBy', 'firstName lastName email role')
   res.json({ orders })
+})
+
+// Get a single order by ID (for label printing, detail views)
+router.get('/:id', auth, allowRoles('admin','user','agent','manager'), async (req, res) => {
+  const { id } = req.params
+  const ord = await Order.findById(id)
+    .populate('productId')
+    .populate('deliveryBoy','firstName lastName email')
+    .populate('createdBy','firstName lastName email role')
+  if (!ord) return res.status(404).json({ message: 'Order not found' })
+
+  // Access control similar to list
+  if (req.user.role === 'admin') {
+    // allowed
+  } else if (req.user.role === 'user') {
+    const agents = await User.find({ role: 'agent', createdBy: req.user.id }, { _id: 1 }).lean()
+    const managers = await User.find({ role: 'manager', createdBy: req.user.id }, { _id: 1 }).lean()
+    const allowed = new Set([String(req.user.id), ...agents.map(a=>String(a._id)), ...managers.map(m=>String(m._id))])
+    if (!allowed.has(String(ord.createdBy))) return res.status(403).json({ message: 'Not allowed' })
+  } else if (req.user.role === 'manager') {
+    const mgr = await User.findById(req.user.id).select('createdBy').lean()
+    const ownerId = String(mgr?.createdBy || '')
+    if (!ownerId) return res.status(403).json({ message: 'Not allowed' })
+    const agents = await User.find({ role: 'agent', createdBy: ownerId }, { _id: 1 }).lean()
+    const managers = await User.find({ role: 'manager', createdBy: ownerId }, { _id: 1 }).lean()
+    const allowed = new Set([ownerId, ...agents.map(a=>String(a._id)), ...managers.map(m=>String(m._id))])
+    if (!allowed.has(String(ord.createdBy))) return res.status(403).json({ message: 'Not allowed' })
+  } else if (req.user.role === 'agent') {
+    if (String(ord.createdBy) !== String(req.user.id)) return res.status(403).json({ message: 'Not allowed' })
+  }
+
+  res.json({ order: ord })
 })
 
 // Unassigned orders with optional country/city filter (admin, user, manager)

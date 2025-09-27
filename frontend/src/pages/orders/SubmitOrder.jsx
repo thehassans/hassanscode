@@ -747,7 +747,12 @@ export default function SubmitOrder(){
                     </td>
                     <td style={{padding:'10px 12px'}}>{statusBadge(derivedStatus(o))}</td>
                     <td style={{padding:'10px 12px', whiteSpace:'nowrap'}} title={fmtDate(o.createdAt)}>{timeAgo(o.createdAt)}</td>
-                    <td style={{padding:'10px 12px'}}>
+                    <td style={{padding:'10px 12px', display:'flex', gap:6}}>
+                      <button
+                        className="btn secondary"
+                        onClick={() => { try{ window.open(`/label/${o._id}`, '_blank', 'noopener,noreferrer') }catch{} }}
+                        title="Print 6x4 Label"
+                      >Print Label</button>
                       {o.status !== 'shipped' && (
                         <button className="btn secondary" onClick={async ()=>{ try{ await apiPost(`/api/orders/${o._id}/ship`, {}); load() }catch(err){ alert(err?.message||'Failed') } }}>Ship</button>
                       )}

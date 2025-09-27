@@ -42,6 +42,7 @@ import Expenses from './pages/finance/Expenses.jsx'
 import Transactions from './pages/finance/Transactions.jsx'
 import Support from './pages/support/Support.jsx'
 import AgentMe from './pages/agent/Me.jsx'
+import PrintLabel from './pages/orders/PrintLabel.jsx'
 
 // E-commerce imports
 import ProductCatalog from './pages/ecommerce/ProductCatalog.jsx'
@@ -126,6 +127,16 @@ export default function App() {
       
       {/* Staff/Admin Login */}
       <Route path="/login" element={<UserLogin />} />
+
+      {/* Print Label (standalone, minimal UI) */}
+      <Route
+        path="/label/:id"
+        element={
+          <RequireAuth>
+            <PrintLabel />
+          </RequireAuth>
+        }
+      />
 
       <Route
         path="/admin"
