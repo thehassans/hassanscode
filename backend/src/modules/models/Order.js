@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 
 const OrderSchema = new mongoose.Schema({
+  customerName: { type: String, default: '' },
   customerPhone: { type: String, required: true },
   phoneCountryCode: { type: String, default: '' },
   orderCountry: { type: String, default: '' },
