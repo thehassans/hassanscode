@@ -237,6 +237,37 @@ export default function DriverPanel() {
 
   const OrderCard = ({ order, showActions = false }) => {
     const distance = getOrderDistance(order)
+    const [status, setStatus] = useState('') // '', delivered, cancelled, no_response
+    const [note, setNote] = useState('')
+    const [amount, setAmount] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    async function saveStatus() {
+      if (!status) return alert('Please select a status')
+      setSaving(true)
+      try {
+        const id = order._id || order.id
+        if (status === 'delivered') {
+          const payload = {}
+          if (note.trim()) payload.note = note.trim()
+          if (amount !== '' && !Number.isNaN(Number(amount))) payload.collectedAmount = Math.max(0, Number(amount))
+          await apiPost(`/api/orders/${id}/deliver`, payload)
+        } else if (status === 'cancelled') {
+          await apiPost(`/api/orders/${id}/cancel`, { reason: note || '' })
+        } else if (status === 'no_response') {
+          await apiPost(`/api/orders/${id}/shipment/update`, { shipmentStatus: 'no_response', deliveryNotes: note || '' })
+        }
+        await loadAssigned()
+        await loadAvailable()
+        setStatus('')
+        setNote('')
+        setAmount('')
+      } catch (e) {
+        alert(e?.message || 'Failed to update status')
+      } finally {
+        setSaving(false)
+      }
+    }
 
     return (
       <div className="driver-order-card">
@@ -332,13 +363,20 @@ export default function DriverPanel() {
           </div>
 
           {showActions && (
-            <div className="order-actions">
-              <button className="action-btn deliver-btn" onClick={() => deliverOrder(order)}>
-                ✓ Mark Delivered
-              </button>
-              <button className="action-btn cancel-btn" onClick={() => cancelOrder(order)}>
-                ✕ Cancel Order
-              </button>
+            <div className="order-actions" style={{flexDirection:'column', alignItems:'stretch'}}>
+              <div className="status-toggle" role="tablist" aria-label="Update order status">
+                <button type="button" className={`status-option ${status==='delivered' ? 'active' : ''}`} onClick={()=> setStatus('delivered')}>Delivered</button>
+                <button type="button" className={`status-option ${status==='cancelled' ? 'active' : ''}`} onClick={()=> setStatus('cancelled')}>Cancelled</button>
+                <button type="button" className={`status-option ${status==='no_response' ? 'active' : ''}`} onClick={()=> setStatus('no_response')}>No Response</button>
+              </div>
+
+              <div className="status-form" style={{display:'grid', gap:10}}>
+                <label className="input-label">Note</label>
+                <textarea className="input" placeholder="Add a short note..." value={note} onChange={e=> setNote(e.target.value)} rows={2} />
+                <label className="input-label">Collected Amount</label>
+                <input className="input" type="number" min="0" step="0.01" placeholder="0.00" value={amount} onChange={e=> setAmount(e.target.value)} />
+                <button className="action-btn deliver-btn" disabled={saving || !status} onClick={saveStatus}>{saving ? 'Saving...' : 'Save Status'}</button>
+              </div>
             </div>
           )}
         </div>
