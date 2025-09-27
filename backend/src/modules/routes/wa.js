@@ -11,10 +11,34 @@ import rateLimit from '../middleware/rateLimit.js';
 import WaSession from '../models/WaSession.js';
 
 const router = Router();
-// Ensure upload temp directory exists to avoid ENOENT on some hosts
-const TEMP_DIR = path.join(os.tmpdir(), 'buysial-wa');
-try { fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch {}
-const upload = multer({ dest: TEMP_DIR });
+// Ensure upload temp directory exists with safe permissions (avoid EACCES on /tmp)
+function ensureTmpDir(){
+  // Prefer env WA_TMP_DIR, else project-local tmp/buysial-wa, else os.tmpdir
+  const preferred = process.env.WA_TMP_DIR
+    ? path.resolve(process.env.WA_TMP_DIR)
+    : path.resolve(process.cwd(), 'tmp', 'buysial-wa')
+  const fallbacks = [preferred, path.join(os.tmpdir(), 'buysial-wa')]
+  for (const p of fallbacks){
+    try{
+      fs.mkdirSync(p, { recursive: true, mode: 0o777 })
+      try{ fs.chmodSync(p, 0o777) }catch{}
+      return p
+    }catch(e){
+      try{ console.warn('[wa uploads] failed to ensure tmp dir', p, e?.message||e) }catch{}
+    }
+  }
+  return os.tmpdir()
+}
+const TEMP_DIR = ensureTmpDir()
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, TEMP_DIR),
+  filename: (_req, file, cb) => {
+    const base = `${Date.now()}-${Math.round(Math.random()*1e9)}`
+    const ext = (file && file.originalname) ? path.extname(file.originalname) : ''
+    cb(null, `${base}${ext}`)
+  }
+})
+const upload = multer({ storage })
 
 // Stricter rate limit for media fetches (heavier upstream load)
 const MEDIA_WINDOW = Math.max(2000, Number(process.env.WA_MEDIA_WINDOW_MS || 10000));

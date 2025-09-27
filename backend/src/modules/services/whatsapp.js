@@ -794,9 +794,10 @@ async function sendVoice(jid, file) {
         ffmpegPath = ffmpegModule?.default || ffmpegModule;
       }
       if (ffmpegPath) {
-        const tmpDir = path.join(os.tmpdir(), 'buysial-wa');
-        try { fs.mkdirSync(tmpDir, { recursive: true }); } catch { }
-        outputPath = path.join(tmpDir, `voice-${Date.now()}.ogg`);
+        // Use a writable temp directory to avoid EACCES on hosts with restricted /tmp
+        const tmpRoot = (process.env.WA_TMP_DIR && path.resolve(process.env.WA_TMP_DIR)) || path.resolve(process.cwd(), 'tmp', 'buysial-wa')
+        try { fs.mkdirSync(tmpRoot, { recursive: true, mode: 0o777 }); try{ fs.chmodSync(tmpRoot, 0o777) }catch{} } catch { }
+        outputPath = path.join(tmpRoot, `voice-${Date.now()}.ogg`);
         await new Promise((resolve, reject) => {
           const args = [
             '-y',
