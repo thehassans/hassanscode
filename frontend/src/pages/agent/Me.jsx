@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { apiGet, apiPatch } from '../../api.js'
+import { API_BASE, apiGet, apiPatch, apiPost } from '../../api.js'
+import { io } from 'socket.io-client'
 
 export default function AgentMe() {
   const [me, setMe] = useState(() => {
@@ -57,6 +58,12 @@ export default function AgentMe() {
     }
   })
   const [orders, setOrders] = useState([])
+  // Agent remit state
+  const [managers, setManagers] = useState([])
+  const [remReq, setRemReq] = useState({ approverRole:'user', approverId:'', amount:'', note:'' })
+  const [remBusy, setRemBusy] = useState(false)
+  const [myRemits, setMyRemits] = useState([])
+  const [wallet, setWallet] = useState({ byCurrency: {}, totalPKR: 0 })
 
   // Calculate total earnings in PKR (same logic as Dashboard)
   const totalPKR = useMemo(() => {
@@ -125,6 +132,59 @@ export default function AgentMe() {
       alive = false
     }
   }, [])
+
+  // Sockets for agent remit updates
+  useEffect(()=>{
+    let socket
+    try{
+      const token = localStorage.getItem('token') || ''
+      socket = io(API_BASE || undefined, { path:'/socket.io', transports:['polling'], upgrade:false, withCredentials:true, auth:{ token } })
+      const refresh = ()=>{ try{ loadMyRemits(); loadWallet() }catch{} }
+      socket.on('agentRemit.approved', refresh)
+      socket.on('agentRemit.sent', refresh)
+    }catch{}
+    return ()=>{
+      try{ socket && socket.off('agentRemit.approved') }catch{}
+      try{ socket && socket.off('agentRemit.sent') }catch{}
+      try{ socket && socket.disconnect() }catch{}
+    }
+  },[])
+
+  // Load managers for approver option
+  async function loadManagers(){
+    try{ const res = await apiGet('/api/users/my-managers?sameCountry=false'); setManagers(Array.isArray(res?.users)? res.users:[]) }catch{ setManagers([]) }
+  }
+  // Load my remittance requests
+  async function loadMyRemits(){
+    try{ const res = await apiGet('/api/finance/agent-remittances'); setMyRemits(Array.isArray(res?.remittances)? res.remittances:[]) }catch{ setMyRemits([]) }
+  }
+  // Load wallet summary
+  async function loadWallet(){
+    try{ const res = await apiGet('/api/finance/agent-remittances/wallet'); const byCurrency = res?.byCurrency || {}; const totalPKR = Number(byCurrency.PKR||0); setWallet({ byCurrency, totalPKR }) }catch{ setWallet({ byCurrency:{}, totalPKR:0 }) }
+  }
+  // Initial loads for remit UI
+  useEffect(()=>{ try{ loadManagers(); loadMyRemits(); loadWallet() }catch{} },[])
+
+  async function submitAgentRemit(){
+    try{
+      setRemBusy(true)
+      const role = String(remReq.approverRole||'user')
+      let approverId = remReq.approverId
+      if (role === 'user'){
+        const ownerId = String(me?.createdBy || '')
+        if (!ownerId) return alert('No workspace owner found.');
+        approverId = ownerId
+      }
+      if (!approverId) return alert('Please select an approver')
+      const payload = { approverId, approverRole: role, amount: Number(remReq.amount||0) }
+      if ((remReq.note||'').trim()) payload.note = remReq.note.trim()
+      await apiPost('/api/finance/agent-remittances', payload)
+      setRemReq({ approverRole: role, approverId: role==='user'?'':remReq.approverId, amount:'', note:'' })
+      await loadMyRemits(); await loadWallet()
+      alert('Request submitted')
+    }catch(e){ alert(e?.message || 'Failed to submit request') }
+    finally{ setRemBusy(false) }
+  }
 
   // Apply theme immediately on change
   useEffect(() => {
@@ -447,13 +507,86 @@ export default function AgentMe() {
             </div>
             <div style={{ display: 'grid', gap: 4 }}>
               <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--success)' }}>
-                PKR {totalPKR.toLocaleString()}
+                PKR {totalPKR.toLocaleString()} {/* earnings projection */}
               </div>
               <div className="helper" style={{ fontSize: 12 }}>
                 Total earnings from {perf.ordersSubmitted || 0} orders (8% commission)
               </div>
+              <div className="helper" style={{ fontSize: 12 }}>
+                Remittance Wallet: PKR {(wallet.totalPKR||0).toLocaleString()} (sent)
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Request Money */}
+      <div className="card" style={{ display:'grid', gap:10 }}>
+        <div className="card-header">
+          <div className="card-title">Request Money</div>
+          <div className="card-subtitle">Request payout from your workspace owner or a manager</div>
+        </div>
+        <div className="section" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:8}}>
+          <select className="input" value={remReq.approverRole} onChange={e=> setRemReq(r=>({ ...r, approverRole: e.target.value, approverId: '' }))}>
+            <option value="user">Owner</option>
+            <option value="manager">Manager</option>
+          </select>
+          {remReq.approverRole === 'manager' ? (
+            <select className="input" value={remReq.approverId} onChange={e=> setRemReq(r=>({ ...r, approverId: e.target.value }))}>
+              <option value="">-- Select Manager --</option>
+              {managers.map(m => (
+                <option key={String(m._id||m.id)} value={String(m._id||m.id)}>{m.firstName} {m.lastName}</option>
+              ))}
+            </select>
+          ) : (
+            <input className="input" value={me?.createdBy ? 'Workspace Owner' : 'No owner found'} readOnly />
+          )}
+          <input className="input" type="number" min="0" step="0.01" placeholder="Amount (PKR)" value={remReq.amount} onChange={e=> setRemReq(r=>({ ...r, amount: e.target.value }))} />
+        </div>
+        <div className="section" style={{display:'grid', gap:8}}>
+          <textarea className="input" placeholder="Note (optional)" value={remReq.note} onChange={e=> setRemReq(r=>({ ...r, note: e.target.value }))} rows={2} />
+          <div style={{display:'flex', justifyContent:'flex-end'}}>
+            <button className="btn" disabled={remBusy || !remReq.amount || (remReq.approverRole==='manager' && !remReq.approverId)} onClick={submitAgentRemit}>{remBusy? 'Submitting…':'Request Money'}</button>
+          </div>
+        </div>
+      </div>
+
+      {/* My Requests */}
+      <div className="card" style={{ display:'grid', gap:10 }}>
+        <div className="card-header">
+          <div className="card-title">My Requests</div>
+        </div>
+        <div className="section" style={{overflowX:'auto'}}>
+          {myRemits.length === 0 ? (
+            <div className="empty-state">No requests yet</div>
+          ) : (
+            <table style={{width:'100%', borderCollapse:'separate', borderSpacing:0}}>
+              <thead>
+                <tr>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Date</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Approver</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Role</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Amount</th>
+                  <th style={{textAlign:'left', padding:'8px 10px'}}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myRemits.map(r => (
+                  <tr key={String(r._id||r.id)} style={{borderTop:'1px solid var(--border)'}}>
+                    <td style={{padding:'8px 10px'}}>{new Date(r.createdAt).toLocaleString()}</td>
+                    <td style={{padding:'8px 10px'}}>{r.approverRole==='user' ? 'Owner' : 'Manager'}</td>
+                    <td style={{padding:'8px 10px'}}>{r.approverRole}</td>
+                    <td style={{padding:'8px 10px'}}>PKR {Number(r.amount||0).toFixed(2)}</td>
+                    <td style={{padding:'8px 10px'}}>
+                      {r.status==='pending' && <span className="badge" style={{borderColor:'#f59e0b', color:'#b45309'}}>Pending</span>}
+                      {r.status==='approved' && <span className="badge" style={{borderColor:'#3b82f6', color:'#1d4ed8'}}>Approved</span>}
+                      {r.status==='sent' && <span className="badge" style={{borderColor:'#10b981', color:'#065f46'}}>Sent</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

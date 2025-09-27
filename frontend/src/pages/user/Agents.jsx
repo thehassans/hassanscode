@@ -16,6 +16,8 @@ export default function Agents(){
   const [me, setMe] = useState(null)
   const [delModal, setDelModal] = useState({ open:false, busy:false, error:'', confirm:'', agent:null })
   const [resendingId, setResendingId] = useState('')
+  // Agent Remittance approvals (for user/manager)
+  const [agentRemits, setAgentRemits] = useState({ items: [], loading: false })
   const totals = useMemo(()=>{
     const totalAssigned = metrics.reduce((s,m)=> s + (m?.assigned||0), 0)
     const totalDone = metrics.reduce((s,m)=> s + (m?.done||0), 0)
@@ -56,6 +58,21 @@ export default function Agents(){
     (async ()=>{ try{ const { user } = await apiGet('/api/users/me'); setMe(user||null) }catch{ setMe(null) } })()
   },[])
 
+  // Load agent remittance requests for approver (user/manager)
+  async function loadAgentRemits(){
+    setAgentRemits(r=>({ ...r, loading: true }))
+    try{ const res = await apiGet('/api/finance/agent-remittances'); setAgentRemits({ items: Array.isArray(res?.remittances)? res.remittances:[], loading: false }) }
+    catch{ setAgentRemits({ items: [], loading: false }) }
+  }
+  useEffect(()=>{ if (me && (me.role==='user' || me.role==='manager')) loadAgentRemits() }, [me?.role])
+
+  async function approveAgentRemit(id){
+    try{ await apiPost(`/api/finance/agent-remittances/${id}/approve`, {}); await loadAgentRemits() }catch(e){ alert(e?.message || 'Failed to approve') }
+  }
+  async function sendAgentRemit(id){
+    try{ await apiPost(`/api/finance/agent-remittances/${id}/send`, {}); await loadAgentRemits() }catch(e){ alert(e?.message || 'Failed to mark as sent') }
+  }
+
   const canCreate = !!(me && (me.role === 'admin' || me.role === 'user' || (me.role === 'manager' && me.managerPermissions && me.managerPermissions.canCreateAgents)))
 
   // small debounce for search
@@ -77,10 +94,13 @@ export default function Agents(){
       socket.on('orders.changed', refresh)
       const onAgentDeleted = ()=>{ try{ loadAgents(q); loadPerformance() }catch{} }
       socket.on('agent.deleted', onAgentDeleted)
+      const onAgentRemitCreated = ()=>{ try{ (me && (me.role==='user' || me.role==='manager')) && loadAgentRemits() }catch{} }
+      socket.on('agentRemit.created', onAgentRemitCreated)
     }catch{}
     return ()=>{
       try{ socket && socket.off('orders.changed') }catch{}
       try{ socket && socket.off('agent.deleted') }catch{}
+      try{ socket && socket.off('agentRemit.created') }catch{}
       try{ socket && socket.disconnect() }catch{}
     }
   },[])
@@ -155,6 +175,49 @@ export default function Agents(){
           <div className="page-subtitle">Create and manage your sales agents. Track performance at a glance.</div>
         </div>
       </div>
+
+      {/* Agent Remittance Requests (Approve/Send) */}
+      {me && (me.role==='user' || me.role==='manager') && (
+        <div className="card" style={{display:'grid', gap:12, marginBottom:12}}>
+          <div className="card-header">
+            <div className="card-title">Agent Remittance Requests</div>
+            <div className="card-subtitle">Approve and mark as sent when paid</div>
+          </div>
+          <div className="section" style={{display:'grid', gap:10}}>
+            {agentRemits.loading ? (
+              <div className="helper">Loading…</div>
+            ) : agentRemits.items.length === 0 ? (
+              <div className="empty-state">No requests</div>
+            ) : (
+              agentRemits.items.map(r => {
+                const name = `${r?.agent?.firstName||''} ${r?.agent?.lastName||''}`.trim() || 'Agent'
+                const isPending = String(r?.status||'').toLowerCase()==='pending'
+                const isApproved = String(r?.status||'').toLowerCase()==='approved'
+                const isSent = String(r?.status||'').toLowerCase()==='sent'
+                return (
+                  <div key={String(r._id||r.id)} className="panel" style={{display:'grid', gap:6, padding:12}}>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                      <div style={{display:'grid', gap:4}}>
+                        <div style={{fontWeight:800}}>{name}</div>
+                        <div className="helper">Requested: PKR {Number(r.amount||0).toFixed(2)} • Role: {r.approverRole}</div>
+                      </div>
+                      <div style={{display:'flex', gap:6, alignItems:'center'}}>
+                        {isPending && <span className="badge" style={{borderColor:'#f59e0b', color:'#b45309'}}>Pending</span>}
+                        {isApproved && <span className="badge" style={{borderColor:'#3b82f6', color:'#1d4ed8'}}>Approved</span>}
+                        {isSent && <span className="badge" style={{borderColor:'#10b981', color:'#065f46'}}>Sent</span>}
+                      </div>
+                    </div>
+                    <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+                      <button className="btn secondary" disabled={!isPending} onClick={()=> approveAgentRemit(String(r._id||r.id))}>Approve</button>
+                      <button className="btn" disabled={!isApproved} onClick={()=> sendAgentRemit(String(r._id||r.id))}>Mark as Sent</button>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
 
       {/* KPI Summary */}
       <div className="kpis">

@@ -3,6 +3,7 @@ import { auth, allowRoles } from '../middleware/auth.js'
 import Expense from '../models/Expense.js'
 import Order from '../models/Order.js'
 import Remittance from '../models/Remittance.js'
+import AgentRemit from '../models/AgentRemit.js'
 import User from '../models/User.js'
 import { getIO } from '../config/socket.js'
 
@@ -12,6 +13,110 @@ const router = express.Router()
 router.post('/expenses', auth, allowRoles('admin','user','agent'), async (req, res) => {
   const { title, category, amount, currency, notes, incurredAt } = req.body || {}
   if (!title || amount == null) return res.status(400).json({ message: 'Missing title or amount' })
+
+// --- Agent Remittances (Agent -> Approver: user or manager) ---
+// Create agent remit request
+router.post('/agent-remittances', auth, allowRoles('agent'), async (req, res) => {
+  try{
+    const { approverId, approverRole, amount, note } = req.body || {}
+    if (!approverId || !approverRole || amount == null) return res.status(400).json({ message: 'approverId, approverRole and amount are required' })
+    const role = String(approverRole).toLowerCase()
+    if (!['user','manager'].includes(role)) return res.status(400).json({ message: 'Invalid approverRole' })
+    const me = await User.findById(req.user.id).select('createdBy')
+    const ownerId = me?.createdBy
+    if (!ownerId) return res.status(400).json({ message: 'No workspace owner' })
+    const approver = await User.findById(approverId)
+    if (!approver || approver.role !== role) return res.status(400).json({ message: 'Approver not found' })
+    // approver must be my owner (if user) or a manager under my owner
+    if (role === 'user'){
+      if (String(approver._id) !== String(ownerId)) return res.status(403).json({ message: 'Approver must be your workspace owner' })
+    } else if (role === 'manager'){
+      if (String(approver.createdBy) !== String(ownerId)) return res.status(403).json({ message: 'Manager not in your workspace' })
+    }
+    const doc = new AgentRemit({
+      agent: req.user.id,
+      owner: ownerId,
+      approver: approverId,
+      approverRole: role,
+      amount: Math.max(0, Number(amount||0)),
+      currency: 'PKR',
+      note: note || '',
+      status: 'pending',
+    })
+    await doc.save()
+    try{ const io = getIO(); io.to(`user:${String(approverId)}`).emit('agentRemit.created', { id: String(doc._id) }) }catch{}
+    return res.status(201).json({ message: 'Request submitted', remit: doc })
+  }catch(err){
+    return res.status(500).json({ message: 'Failed to submit request' })
+  }
+})
+
+// List agent remittances
+router.get('/agent-remittances', auth, allowRoles('agent','manager','user'), async (req, res) => {
+  try{
+    let match = {}
+    if (req.user.role === 'agent') match.agent = req.user.id
+    if (req.user.role === 'manager') match = { approver: req.user.id, approverRole: 'manager' }
+    if (req.user.role === 'user') match = { approver: req.user.id, approverRole: 'user' }
+    const items = await AgentRemit.find(match).sort({ createdAt: -1 }).populate('agent','firstName lastName email')
+    return res.json({ remittances: items })
+  }catch(err){
+    return res.status(500).json({ message: 'Failed to load agent remittances' })
+  }
+})
+
+// Approve agent remittance (user or manager)
+router.post('/agent-remittances/:id/approve', auth, allowRoles('user','manager'), async (req, res) => {
+  try{
+    const { id } = req.params
+    const r = await AgentRemit.findById(id)
+    if (!r) return res.status(404).json({ message: 'Request not found' })
+    if (String(r.approver) !== String(req.user.id)) return res.status(403).json({ message: 'Not allowed' })
+    if (r.status !== 'pending') return res.status(400).json({ message: 'Already processed' })
+    r.status = 'approved'
+    r.approvedAt = new Date()
+    r.approvedBy = req.user.id
+    await r.save()
+    try{ const io = getIO(); io.to(`user:${String(r.agent)}`).emit('agentRemit.approved', { id: String(r._id) }) }catch{}
+    return res.json({ message: 'Approved', remit: r })
+  }catch(err){
+    return res.status(500).json({ message: 'Failed to approve' })
+  }
+})
+
+// Mark agent remittance as sent (user or manager)
+router.post('/agent-remittances/:id/send', auth, allowRoles('user','manager'), async (req, res) => {
+  try{
+    const { id } = req.params
+    const r = await AgentRemit.findById(id)
+    if (!r) return res.status(404).json({ message: 'Request not found' })
+    if (String(r.approver) !== String(req.user.id)) return res.status(403).json({ message: 'Not allowed' })
+    if (!['approved'].includes(r.status)) return res.status(400).json({ message: 'Request must be approved first' })
+    r.status = 'sent'
+    r.sentAt = new Date()
+    r.sentBy = req.user.id
+    await r.save()
+    try{ const io = getIO(); io.to(`user:${String(r.agent)}`).emit('agentRemit.sent', { id: String(r._id) }) }catch{}
+    return res.json({ message: 'Marked as sent', remit: r })
+  }catch(err){
+    return res.status(500).json({ message: 'Failed to mark as sent' })
+  }
+})
+
+// Agent wallet summary (sum of sent remittances by currency)
+router.get('/agent-remittances/wallet', auth, allowRoles('agent'), async (req, res) => {
+  try{
+    const rows = await AgentRemit.aggregate([
+      { $match: { agent: new (await import('mongoose')).default.Types.ObjectId(req.user.id), status: 'sent' } },
+      { $group: { _id: '$currency', total: { $sum: { $ifNull: ['$amount', 0] } } } }
+    ])
+    const byCurrency = {}
+    for (const r of rows){ byCurrency[r._id || ''] = r.total }
+    return res.json({ byCurrency })
+  }catch(err){
+    return res.status(500).json({ message: 'Failed to load wallet' })
+  }
+})
   const doc = new Expense({ title, category, amount: Math.max(0, Number(amount||0)), currency: currency||'SAR', notes, incurredAt: incurredAt ? new Date(incurredAt) : new Date(), createdBy: req.user.id })
   await doc.save()
   res.status(201).json({ message: 'Expense created', expense: doc })

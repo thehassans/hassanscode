@@ -364,8 +364,8 @@ router.get('/managers', auth, allowRoles('admin','user'), async (req, res) => {
   res.json({ users })
 })
 
-// Driver: list managers in my workspace (optionally same country)
-router.get('/my-managers', auth, allowRoles('driver'), async (req, res) => {
+// Driver/Agent: list managers in my workspace (optionally same country)
+router.get('/my-managers', auth, allowRoles('driver','agent'), async (req, res) => {
   try{
     const me = await User.findById(req.user.id).select('createdBy country')
     const ownerId = me?.createdBy
