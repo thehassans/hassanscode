@@ -2147,3 +2147,67 @@ a {
     border-radius: 8px;
   }
 }
+
+
+/* Driver Panel: Customer reveal (swipe-down) */
+.customer-reveal{
+  background: var(--panel);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  user-select: none;
+}
+.customer-reveal:active { opacity: 0.92 }
+.swipe-hint{
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+.customer-line{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.customer-line .chip{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 6px 10px;
+  border-radius: 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  max-width: 33%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inline-icons{
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.inline-icon-btn{
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  color: #fff;
+}
+.inline-icon-btn:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.inline-icon-btn.call{ background: var(--driver-call); }
+.inline-icon-btn.map{ background: var(--driver-map); }
+.inline-icon-btn.wa{ background: var(--driver-whatsapp); }
+
+@media (max-width: 420px){
+  .customer-line .chip{ max-width: 40%; }
+}
