@@ -312,17 +312,32 @@ export default function WhatsAppInbox() {
       fd.append('jid', activeJid)
       // only first file (native capture should provide one)
       fd.append('voice', f)
-      const r = await apiUpload('/api/wa/send-voice', fd)
-      if (r && r.message && r.message.key && r.message.key.id) {
-        reconcileTempVoice(tempId, r.message, localUrl)
-      } else {
-        // Fallback: if server didn't echo a message, refresh from server
-        setMessages((prev) => prev.filter((m) => m?.key?.id !== tempId))
-        try {
-          URL.revokeObjectURL(localUrl)
-        } catch {}
-        await loadMessages(activeJid)
+      // Retry voice upload on transient errors up to 3 tries
+      const uploadTry = async (attempt) => {
+        try{
+          const r = await apiUpload('/api/wa/send-voice', fd)
+          if (r && r.message && r.message.key && r.message.key.id) {
+            reconcileTempVoice(tempId, r.message, localUrl)
+          } else {
+            // Fallback: if server didn't echo a message, refresh from server
+            setMessages((prev) => prev.filter((m) => m?.key?.id !== tempId))
+            try { URL.revokeObjectURL(localUrl) } catch {}
+            await loadMessages(activeJid)
+          }
+          return true
+        }catch(err){
+          const msg = err?.message || ''
+          const status = err?.status
+          const transient = (status === 503 || status === 429 || /send-transient|connection closed|not open|wa-not-connected/i.test(msg))
+          if (transient && attempt < 2){
+            const delay = 1800 * (attempt + 1)
+            await new Promise(r => setTimeout(r, delay))
+            return uploadTry(attempt+1)
+          }
+          throw err
+        }
       }
+      await uploadTry(0)
     } catch (err) {
       const msg = err?.message || 'Failed to send voice message'
       if (/403/.test(String(msg))) {
@@ -945,7 +960,7 @@ export default function WhatsAppInbox() {
     }
     setMessages((prev) => [...prev, optimistic])
     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 0)
-    // One-time auto-retry on transient send failures
+    // Auto-retry on transient send failures (up to 3 tries total)
     const trySend = async (attempt) => {
       try {
         const r = await apiPost('/api/wa/send-text', { jid: activeJid, text: toSend })
@@ -959,18 +974,12 @@ export default function WhatsAppInbox() {
       } catch (err) {
         const msg = err?.message || ''
         const status = err?.status
-        if ((status === 503 || status === 429) && attempt === 0) {
-          await new Promise((r) => setTimeout(r, 1800))
-          return trySend(1)
-        }
-        if (/send-transient/i.test(msg) && attempt === 0) {
-          await new Promise((r) => setTimeout(r, 1800))
-          return trySend(1)
-        }
-        if (/Internal server error/i.test(msg) && attempt === 0) {
-          // Treat a 500 from send-text as transient once
-          await new Promise((r) => setTimeout(r, 1800))
-          return trySend(1)
+        const transient = (status === 503 || status === 429 || /send-transient|connection closed|not open/i.test(msg))
+        const server500 = /Internal server error/i.test(msg)
+        if ((transient || server500) && attempt < 2) {
+          const delay = 1800 * (attempt + 1)
+          await new Promise((r) => setTimeout(r, delay))
+          return trySend(attempt + 1)
         }
         if (/403/.test(msg)) {
           alert(
