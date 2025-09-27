@@ -36,7 +36,7 @@ import Notifications from './pages/user/Notifications.jsx'
 import DriverDashboard from './pages/driver/Dashboard.jsx'
 import DriverPanel from './pages/driver/DriverPanel.jsx'
 import DriverMe from './pages/driver/Me.jsx'
-import SubmitOrder from './pages/orders/SubmitOrder.jsx'
+import UserOrders from './pages/user/Orders.jsx'
 import InhouseProducts from './pages/products/InhouseProducts.jsx'
 import Warehouse from './pages/warehouse/Warehouse.jsx'
 import Shipments from './pages/shipments/Shipments.jsx'
@@ -46,6 +46,7 @@ import Transactions from './pages/finance/Transactions.jsx'
 import Support from './pages/support/Support.jsx'
 import AgentMe from './pages/agent/Me.jsx'
 import PrintLabel from './pages/orders/PrintLabel.jsx'
+import SubmitOrder from './pages/orders/SubmitOrder.jsx'
 
 // E-commerce imports
 import ProductCatalog from './pages/ecommerce/ProductCatalog.jsx'
@@ -223,7 +224,7 @@ export default function App() {
         <Route path="drivers" element={<Drivers />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="campaigns" element={<Campaign />} />
-        <Route path="orders" element={<SubmitOrder />} />
+        <Route path="orders" element={<UserOrders />} />
         <Route path="inhouse-products" element={<InhouseProducts />} />
         <Route path="warehouses" element={<Warehouse />} />
         <Route path="shipments" element={<Shipments />} />
