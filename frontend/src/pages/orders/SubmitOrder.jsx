@@ -36,6 +36,7 @@ export default function SubmitOrder(){
   const [coordsInput, setCoordsInput] = useState('')
   const [locationValidation, setLocationValidation] = useState({ isValid: true, message: '' }) // New validation state
   const [me, setMe] = useState(null)
+  const [meLoaded, setMeLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [rows, setRows] = useState([])
@@ -134,11 +135,18 @@ export default function SubmitOrder(){
   // Load current user for agent banner
   useEffect(()=>{
     (async ()=>{
-      try{ const { user } = await apiGet('/api/users/me'); setMe(user) }catch(_){ setMe(null) }
+      try{ const { user } = await apiGet('/api/users/me'); setMe(user) }
+      catch(_){ setMe(null) }
+      finally{ setMeLoaded(true) }
     })()
   },[])
 
-  const canCreateOrder = !!(me && (me.role !== 'manager' || (me.managerPermissions && me.managerPermissions.canCreateOrders)))
+  // Allow agents and users by default; managers require explicit permission
+  const canCreateOrder = (
+    !meLoaded
+      ? true
+      : !!(me && (me.role !== 'manager' || (me.managerPermissions && me.managerPermissions.canCreateOrders)))
+  )
 
   async function load(){
     setLoadingList(true)
@@ -390,7 +398,8 @@ export default function SubmitOrder(){
             <div>{me.firstName} {me.lastName}</div>
           </div>
         )}
-        {!canCreateOrder && (
+        {/* Show warning only for managers without permission, after user info is loaded */}
+        {meLoaded && me && me.role === 'manager' && !canCreateOrder && (
           <div className="helper" style={{padding:'8px 10px', background:'var(--panel-2)', border:'1px solid var(--border)', borderRadius:8}}>
             Your manager account does not have permission to create orders. Please contact the owner to enable "Can create orders".
           </div>
