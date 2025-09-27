@@ -104,6 +104,11 @@ app.use('/uploads', (req, res, next) => {
 });
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
 
+// Always provide a safe favicon fallback to avoid proxy 500s when dist is missing
+app.get('/favicon.ico', (req, res) => {
+  try { res.status(204).end() } catch { res.end() }
+})
+
 // Serve frontend static build if available (single-server deploy)
 // Set SERVE_STATIC=false in env to disable.
 let CLIENT_DIST = null;
@@ -155,20 +160,35 @@ app.get(['/manifest.webmanifest','/favicon.svg','/favicon.ico'], (req, res, next
 // SPA fallback: let client router handle 404s (but do NOT intercept API, Socket.IO, or upload paths)
 app.get('*', (req, res, next) => {
   try {
-    const p = req.path || '';
-    if (p.startsWith('/api/')) return next();
-    if (p.startsWith('/socket.io')) return next();
-    if (p.startsWith('/uploads')) return next();
-    if (p.startsWith('/assets/')) return next();
+    const p = req.path || ''
+    if (p.startsWith('/api/')) return next()
+    if (p.startsWith('/socket.io')) return next()
+    if (p.startsWith('/uploads')) return next()
+    if (p.startsWith('/assets/')) return next()
     if (INDEX_HTML && fs.existsSync(INDEX_HTML)) {
       try{ res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate') }catch{}
-      return res.sendFile(INDEX_HTML);
+      return res.sendFile(INDEX_HTML)
     }
-    return next();
-  } catch {
-    return next();
+    // Minimal safe fallback HTML when dist is missing or not readable
+    return res.status(200).send(`<!doctype html>
+      <html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <title>App</title><style>body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1220;color:#d1d5db;display:grid;place-items:center;height:100vh;margin:0} .card{background:#111827;border:1px solid #1f2937;padding:18px;border-radius:10px;max-width:640px} .muted{opacity:.75}</style></head>
+      <body><div class="card"><h1>Frontend not built</h1>
+      <p class="muted">The server could not find the frontend build (index.html). If you intend to serve the SPA from this server, ensure a production build exists and set <code>FRONTEND_DIST</code> or place the build at <code>frontend/dist</code>.</p>
+      <p class="muted">Backend health: <a href="/api/health" style="color:#7dd3fc">/api/health</a></p></div></body></html>`)
+  } catch (e) {
+    return next(e)
   }
-});
+})
+
+// Last-resort error handler to avoid generic 500s and surface details in logs
+// Do not leak stack in production responses
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  try{ console.error('[error]', req.method, req.url, err?.stack || err) }catch{}
+  const msg = process.env.NODE_ENV === 'development' ? (err?.message || 'Internal Server Error') : 'Internal Server Error'
+  res.status(500).json({ message: msg })
+})
 
 // Start HTTP server immediately; connect to DB in background so endpoints are reachable during DB spin-up
 server.listen(PORT, () => {
