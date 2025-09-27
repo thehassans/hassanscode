@@ -52,9 +52,11 @@ export default function UserDashboard(){
   })
   const me = JSON.parse(localStorage.getItem('me')||'{}')
   const [analytics, setAnalytics] = useState(null)
+  const [orders, setOrders] = useState([])
   async function load(){
     try{ setAnalytics(await apiGet('/api/orders/analytics/last7days')) }catch(_e){ setAnalytics({ days: [], totals:{} }) }
     try{ setMetrics(await apiGet('/api/reports/user-metrics')) }catch(_e){ console.error('Failed to fetch metrics') }
+    try{ const res = await apiGet('/api/orders'); setOrders(Array.isArray(res?.orders) ? res.orders : []) }catch(_e){ setOrders([]) }
   }
   useEffect(()=>{ load() },[])
   // Live updates via socket
@@ -84,6 +86,14 @@ export default function UserDashboard(){
       try{ socket && socket.disconnect() }catch{}
     }
   },[toast])
+
+  // Recent order history: delivered or cancelled
+  const orderHistory = React.useMemo(()=>{
+    const list = Array.isArray(orders) ? orders : []
+    const hist = list.filter(o => ['delivered','cancelled'].includes(String(o?.shipmentStatus||'').toLowerCase()))
+    hist.sort((a,b)=> new Date(b.deliveredAt || b.updatedAt || b.createdAt) - new Date(a.deliveredAt || a.updatedAt || a.createdAt))
+    return hist.slice(0, 12)
+  }, [orders])
   return (
     <div className="container">
       <div className="page-header">
@@ -109,6 +119,42 @@ export default function UserDashboard(){
       </div>
       <div style={{marginTop:12}}>
         <OrderStatusPie metrics={metrics} />
+      </div>
+
+      {/* Recent Order History */}
+      <div className="card" style={{marginTop:12, display:'grid', gap:12}}>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+          <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <div style={{width:32,height:32,borderRadius:8,background:'linear-gradient(135deg,#10b981,#059669)',display:'grid',placeItems:'center',color:'#fff',fontWeight:800}}>📜</div>
+            <div>
+              <div style={{fontWeight:800}}>Recent Order History</div>
+              <div className="helper">Delivered or Cancelled</div>
+            </div>
+          </div>
+        </div>
+        {orderHistory.length === 0 ? (
+          <div className="empty-state">No delivered or cancelled orders yet</div>
+        ) : (
+          <div style={{display:'grid', gap:8}}>
+            {orderHistory.map(o => {
+              const id = String(o?._id || o?.id || '')
+              const code = o?.invoiceNumber ? `#${o.invoiceNumber}` : `#${id.slice(-6)}`
+              const st = String(o?.shipmentStatus||'').toLowerCase()
+              const when = o?.deliveredAt || o?.updatedAt || o?.createdAt
+              const whenStr = when ? new Date(when).toLocaleString() : ''
+              const color = st==='delivered' ? '#10b981' : (st==='cancelled' ? '#ef4444' : 'var(--fg)')
+              return (
+                <div key={id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 10px', border:'1px solid var(--border)', borderRadius:8, background:'var(--panel)'}}>
+                  <div style={{display:'grid'}}>
+                    <div style={{fontWeight:700}}>{code} • <span style={{opacity:.9}}>{o?.customerName || 'Customer'}</span></div>
+                    <div className="helper" style={{fontSize:12}}>{whenStr}</div>
+                  </div>
+                  <div className="chip" style={{background:'transparent', border:`1px solid ${color}`, color}}>{st.replace('_',' ')}</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

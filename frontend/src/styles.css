@@ -2204,18 +2204,19 @@ a {
   color: #fff;
 }
 .inline-icon-btn.light{
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: transparent !important;
+  border: none !important;
   color: #2563eb;
 }
+.inline-icon-btn.light:hover{ opacity: .85; }
 .inline-icon-btn svg{ display:block; color: inherit; }
 .inline-icon-btn svg path{ fill: currentColor; }
 .inline-icon-btn svg[fill="none"],
 .inline-icon-btn svg[fill="none"] path{ fill: none; stroke: currentColor; }
 .inline-icon-btn:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); }
-.inline-icon-btn.call{ background: var(--driver-call); }
-.inline-icon-btn.map{ background: var(--driver-map); }
-.inline-icon-btn.wa{ background: var(--driver-whatsapp); }
+.inline-icon-btn.call{ /* removed background for minimal icon */ }
+.inline-icon-btn.map{ /* removed background for minimal icon */ }
+.inline-icon-btn.wa{ /* removed background for minimal icon */ }
 
 @media (max-width: 420px){
   .customer-line .chip{ max-width: 40%; }

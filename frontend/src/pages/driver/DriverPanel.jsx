@@ -329,7 +329,10 @@ export default function DriverPanel() {
                 <div style={{fontWeight:700, fontSize:16}}>{customerName}</div>
                 <div style={{display:'flex', alignItems:'center', gap:6, marginTop:2}}>
                   <span title="Open in Maps" style={{display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', color:'#2563eb'}} onClick={()=> openMaps(order)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden style={{ color: '#2563eb' }}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M20.84 10.61C20.84 16 12 22 12 22S3.16 16 3.16 10.61a8.84 8.84 0 1 1 17.68 0Z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
                     <span>{areaText}</span>
                   </span>
                 </div>
@@ -420,10 +423,15 @@ export default function DriverPanel() {
           {/* Bottom Action Bar */}
           <div className="action-bar" style={{display:'flex', gap:12, justifyContent:'space-between', marginTop:10}}>
             <button className="inline-icon-btn map light" onClick={()=> openMaps(order)} title="Open Map" aria-label="Open Map" style={{width:44, height:44, borderRadius:12}}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M20.84 10.61C20.84 16 12 22 12 22S3.16 16 3.16 10.61a8.84 8.84 0 1 1 17.68 0Z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
             </button>
             <button className="inline-icon-btn call light" onClick={()=> callPhone(order.customerPhone)} title="Call" aria-label="Call" style={{width:44, height:44, borderRadius:12}}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M22 16.92a16 16 0 0 1-6.87-1.53 16.38 16.38 0 0 1-5.3-3.53A16.38 16.38 0 0 1 6.3 6.56 16 16 0 0 1 4.78 0h0a2 2 0 0 1 2 2v3a2 2 0 0 0 .55 1.38l1.1 1.1a2 2 0 0 1 .24 2.47l-.5.82a2 2 0 0 0 .45 2.54l3.17 3.17a2 2 0 0 0 2.54.45l.82-.5a2 2 0 0 1 2.47.24l1.1 1.1A2 2 0 0 0 19 20h3a2 2 0 0 1 2 2h0"/>
+              </svg>
             </button>
             <button className="inline-icon-btn sms light" onClick={()=> openSMS(order.customerPhone)} title="SMS" aria-label="SMS" style={{width:44, height:44, borderRadius:12}}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -432,8 +440,9 @@ export default function DriverPanel() {
               </svg>
             </button>
             <button className="inline-icon-btn wa light" onClick={()=> openWhatsApp(order.customerPhone)} title="WhatsApp" aria-label="WhatsApp" style={{width:44, height:44, borderRadius:12}}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                <path d="M20.52 3.48A11.5 11.5 0 0 0 3.48 20.52L2 22l3.1-.82A11.5 11.5 0 1 0 20.52 3.48zm-2.06 15.08c-1.2 1.2-3.1 1.6-4.7 1.1-2.58-.82-5.73-3.88-6.55-6.46-.5-1.6-.1-3.5 1.1-4.7.4-.4 1.02-.4 1.42 0l1.4 1.4c.36.36.4.94.08 1.36l-.68.9c-.22.3-.25.7-.1 1.04.5 1.18 1.82 2.5 3 3 .35.15.75.12 1.05-.1l.9-.68c.42-.32 1-.28 1.36.08l1.4 1.4c.4.4.4 1.02 0 1.42z"/>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M21 11.5a8.5 8.5 0 1 1-3.05-6.53L21 3l-.97 3.53A8.5 8.5 0 0 1 21 11.5z"/>
+                <path d="M8 9.5c1.5 3 3.5 5 6.5 6.5"/>
               </svg>
             </button>
           </div>
@@ -478,6 +487,14 @@ export default function DriverPanel() {
   }
 
   const sortedAssigned = sortOrders(assigned)
+  const activeOrders = React.useMemo(()=>{
+    const list = sortedAssigned || []
+    return list.filter(o => !['delivered','cancelled','returned'].includes(String(o?.shipmentStatus||'').toLowerCase()))
+  }, [sortedAssigned])
+  const historyOrders = React.useMemo(()=>{
+    const list = sortedAssigned || []
+    return list.filter(o => ['delivered','cancelled'].includes(String(o?.shipmentStatus||'').toLowerCase()))
+  }, [sortedAssigned])
 
   return (
     <div className="driver-panel">
@@ -490,17 +507,36 @@ export default function DriverPanel() {
       <div className="orders-section">
         <div className="section-header">
           <h2 className="section-title">My Assigned Orders</h2>
-          <span className="order-count">{assigned.length}</span>
+          <span className="order-count">{activeOrders.length}</span>
         </div>
 
         <div className="orders-list">
           {loading ? (
             <div className="loading-state">Loading assigned orders...</div>
-          ) : sortedAssigned.length === 0 ? (
+          ) : activeOrders.length === 0 ? (
             <div className="empty-state">No assigned orders</div>
           ) : (
-            sortedAssigned.map((order) => (
+            activeOrders.map((order) => (
               <OrderCard key={order._id || order.id} order={order} showActions={true} />
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Order History */}
+      <div className="orders-section" style={{marginTop:16}}>
+        <div className="section-header">
+          <h2 className="section-title">Order History</h2>
+          <span className="order-count">{historyOrders.length}</span>
+        </div>
+        <div className="orders-list">
+          {loading ? (
+            <div className="loading-state">Loading...</div>
+          ) : historyOrders.length === 0 ? (
+            <div className="empty-state">No delivered or cancelled orders</div>
+          ) : (
+            historyOrders.slice(0, 20).map((order) => (
+              <OrderCard key={order._id || order.id} order={order} showActions={false} />
             ))
           )}
         </div>
