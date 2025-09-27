@@ -1827,91 +1827,9 @@ export default function WhatsAppInbox() {
   function Ticks({ isMe, status }) {
     if (!isMe) return null
     // normalize status: some backends may use 'seen' instead of 'read'
-    const st = (status === 'seen' ? 'read' : status) || 'sent' // default to 'sent' if unknown
-    const Blue = '#4fb3ff' // Blue for read messages
-    const Grey = '#9aa4b2' // Grey for sent/delivered messages
-
-    // Single tick for sent messages
-    const singleTick = (
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        aria-hidden
-        fill="none"
-        style={{ display: 'inline-block', verticalAlign: 'middle' }}
-      >
-        <path
-          d="M20 6 9 17l-5-5"
-          stroke={Grey}
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    )
-
-    // Double ticks for delivered messages (grey)
-    const doubleTicks = (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden fill="none">
-          <path
-            d="M20 6 9 17l-5-5"
-            stroke={Grey}
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          aria-hidden
-          fill="none"
-          style={{ marginLeft: -6 }}
-        >
-          <path
-            d="M22 8 11 19l-3-3"
-            stroke={Grey}
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-    )
-
-    // Blue double ticks for read messages
-    const blueDoubleTicks = (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden fill="none">
-          <path
-            d="M20 6 9 17l-5-5"
-            stroke={Blue}
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          aria-hidden
-          fill="none"
-          style={{ marginLeft: -6 }}
-        >
-          <path
-            d="M22 8 11 19l-3-3"
-            stroke={Blue}
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-    )
+    const st = (status === 'seen' ? 'read' : status) || 'sent'
+    const Blue = '#34B7F1' // WhatsApp-like blue for read ticks
+    const Grey = '#8696A0' // WhatsApp-like grey for sent/delivered
 
     // Special case: show a small clock for 'sending'
     if (st === 'sending') {
@@ -1924,11 +1842,38 @@ export default function WhatsAppInbox() {
         </span>
       )
     }
-    // Return appropriate tick based on status
-    if (st === 'sent') return <span style={{ marginLeft: 6 }}>{singleTick}</span>
-    if (st === 'delivered') return <span style={{ marginLeft: 6 }}>{doubleTicks}</span>
-    if (st === 'read') return <span style={{ marginLeft: 6 }}>{blueDoubleTicks}</span>
-    return null
+
+    // Draw curved WhatsApp-style ticks. For single tick, render only the front path.
+    function DoubleTick({ color, both = true }){
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+          {both && (
+            <path
+              d="M16.4 7.6l-6.9 6.9-2.9-2.9"
+              stroke={color}
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+          <path
+            d="M20.2 7.6l-6.9 6.9-2.9-2.9"
+            stroke={color}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )
+    }
+
+    return (
+      <span style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center' }}>
+        {st === 'sent' && <DoubleTick color={Grey} both={false} />}
+        {st === 'delivered' && <DoubleTick color={Grey} both={true} />}
+        {st === 'read' && <DoubleTick color={Blue} both={true} />}
+      </span>
+    )
   }
 
   function AudioBubble({ jid, msg, content, ensureMediaUrl }) {
