@@ -613,8 +613,11 @@ async function sendText(jid, text) {
       // ignore lookup errors and attempt send anyway
     }
   }
+  let sentMsg = null;
   try {
-    await s.sendMessage(njid, { text });
+    const res = await s.sendMessage(njid, { text });
+    // Baileys may return an object with key/message
+    if (res && (res.key || res.message)) sentMsg = res;
   } catch (err) {
     try {
       console.error('[sendText] sendMessage failed', { jid: njid, message: err?.message || err });
@@ -628,7 +631,8 @@ async function sendText(jid, text) {
       const st = await getStatus();
       if (st?.connected && sock) {
         try {
-          await sock.sendMessage(njid, { text });
+          const res2 = await sock.sendMessage(njid, { text });
+          if (res2 && (res2.key || res2.message)) sentMsg = res2;
         } catch (_err2) {
           const e2 = String(_err2?.message || '');
           if (/connection closed|socket is not open|not open/i.test(e2)){
@@ -649,7 +653,14 @@ async function sendText(jid, text) {
     const ca = await ChatAssignment.findOne({ jid: njid });
     if (ca && !ca.firstResponseAt) { ca.firstResponseAt = new Date(); await ca.save(); }
   } catch (_) { }
-  return { ok: true };
+  // Construct a minimal echo message if library did not return one
+  try{
+    if (!sentMsg){
+      const nowSec = Math.floor(Date.now()/1000)
+      sentMsg = { key: { id: `${nowSec}:${Math.random().toString(36).slice(2,8)}`, fromMe: true }, message: { conversation: text }, messageTimestamp: nowSec }
+    }
+  }catch{}
+  return { ok: true, message: sentMsg };
 }
 
 async function sendDocument(jid, filePath, fileName = null, caption = '') {

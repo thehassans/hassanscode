@@ -273,6 +273,19 @@ export default function WhatsAppInbox() {
     } catch {}
   }
 
+  // Replace an optimistic temp text bubble with the server-confirmed one
+  function reconcileTempText(tempId, serverMsg) {
+    try {
+      if (!serverMsg || !serverMsg.key || !serverMsg.key.id) return
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m?.key?.id !== tempId) return m
+          return serverMsg
+        })
+      )
+    } catch {}
+  }
+
   // Voice upload fallback (for browsers without MediaRecorder)
   async function onVoiceFile(e) {
     try {
@@ -912,8 +925,14 @@ export default function WhatsAppInbox() {
     // One-time auto-retry on transient send failures
     const trySend = async (attempt) => {
       try {
-        await apiPost('/api/wa/send-text', { jid: activeJid, text: toSend })
-        return true
+        const r = await apiPost('/api/wa/send-text', { jid: activeJid, text: toSend })
+        if (r && r.message && r.message.key && r.message.key.id) {
+          reconcileTempText(tempId, r.message)
+        } else {
+          // Fallback: mark optimistic as 'sent' so ticks move past the clock
+          setMessages((prev) => prev.map((m) => (m?.key?.id === tempId ? { ...m, status: 'sent' } : m)))
+        }
+        return r
       } catch (err) {
         const msg = err?.message || ''
         const status = err?.status
@@ -1669,6 +1688,21 @@ export default function WhatsAppInbox() {
             navigate(`${location.pathname}?${qs.toString()}`, { replace: false })
           } catch {}
         }
+
+  // Replace an optimistic temp text bubble with the server-confirmed one
+  function reconcileTempText(tempId, serverMsg) {
+    try {
+      if (!serverMsg || !serverMsg.key || !serverMsg.key.id) return
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m?.key?.id !== tempId) return m
+          const merged = { ...serverMsg }
+          merged.status = merged.status || 'sent'
+          return merged
+        })
+      )
+    } catch {}
+  }
       }
     } catch {}
   }
@@ -1855,14 +1889,22 @@ export default function WhatsAppInbox() {
       </span>
     )
 
+    // Special case: show a small clock for 'sending'
+    if (st === 'sending') {
+      return (
+        <span style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="9" stroke={Grey} strokeWidth="2" />
+            <path d="M12 7v5l3 2" stroke={Grey} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      )
+    }
     // Return appropriate tick based on status
     if (st === 'sent') return <span style={{ marginLeft: 6 }}>{singleTick}</span>
     if (st === 'delivered') return <span style={{ marginLeft: 6 }}>{doubleTicks}</span>
     if (st === 'read') return <span style={{ marginLeft: 6 }}>{blueDoubleTicks}</span>
-    if (st === 'sending') return <span style={{ marginLeft: 6, opacity: 0.5 }}>{singleTick}</span>
-
-    // fallback to single tick
-    return <span style={{ marginLeft: 6 }}>{singleTick}</span>
+    return null
   }
 
   function AudioBubble({ jid, msg, content, ensureMediaUrl }) {
