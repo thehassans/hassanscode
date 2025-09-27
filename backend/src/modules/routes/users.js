@@ -340,9 +340,36 @@ router.get('/agents/me/performance', auth, async (req, res) => {
     const all = await Order.countDocuments({ createdBy: userId, createdByRole: 'agent' })
     const shipped = await Order.countDocuments({ createdBy: userId, createdByRole: 'agent', status: 'shipped' })
 
-    res.json({ avgResponseSeconds: avgMs != null ? Math.round(avgMs/1000) : null, ordersSubmitted: all, ordersShipped: shipped })
+  res.json({ avgResponseSeconds: avgMs != null ? Math.round(avgMs/1000) : null, ordersSubmitted: all, ordersShipped: shipped })
+})
+
+// Driver self performance metrics
+router.get('/drivers/me/performance', auth, allowRoles('driver'), async (req, res) => {
+  try{
+    const driverId = new mongoose.Types.ObjectId(req.user.id)
+    const agg = await Order.aggregate([
+      { $match: { deliveryBoy: driverId } },
+      { $group: {
+        _id: null,
+        assigned: { $sum: 1 },
+        delivered: { $sum: { $cond: [ { $eq: ['$shipmentStatus', 'delivered'] }, 1, 0 ] } },
+        cancelled: { $sum: { $cond: [ { $eq: ['$shipmentStatus', 'cancelled'] }, 1, 0 ] } },
+        returned: { $sum: { $cond: [ { $eq: ['$shipmentStatus', 'returned'] }, 1, 0 ] } },
+        inTransit: { $sum: { $cond: [ { $in: ['$shipmentStatus', ['in_transit','assigned','pending']] }, 1, 0 ] } },
+        totalCollected: { $sum: { $cond: [ { $eq: ['$shipmentStatus', 'delivered'] }, { $ifNull: ['$collectedAmount', 0] }, 0 ] } },
+      } }
+    ])
+    const row = (agg && agg[0]) || { assigned: 0, delivered: 0, cancelled: 0, returned: 0, inTransit: 0, totalCollected: 0 }
+    res.json({
+      assigned: row.assigned || 0,
+      delivered: row.delivered || 0,
+      cancelled: row.cancelled || 0,
+      returned: row.returned || 0,
+      inTransit: row.inTransit || 0,
+      totalCollected: Number(row.totalCollected || 0),
+    })
   }catch(err){
-    res.status(500).json({ error: err?.message || 'failed' })
+    res.status(500).json({ message: err?.message || 'failed' })
   }
 })
 
