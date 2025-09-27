@@ -36,7 +36,7 @@ async function emitOrderChange(ord, action = 'updated'){
 
 // Create order (admin, user, agent, manager with permission)
 router.post('/', auth, allowRoles('admin','user','agent','manager'), async (req, res) => {
-  const { customerName, customerPhone, customerLocation, details, phoneCountryCode, orderCountry, city, customerAddress, locationLat, locationLng, productId, quantity,
+  const { customerName, customerPhone, customerLocation, details, phoneCountryCode, orderCountry, city, customerArea, customerAddress, locationLat, locationLng, productId, quantity,
     shipmentMethod, courierName, trackingNumber, deliveryBoy, shippingFee, codAmount, collectedAmount, total, discount, preferredTiming } = req.body || {}
   if (!customerPhone || !customerLocation || !details) return res.status(400).json({ message: 'Missing required fields' })
 
@@ -80,6 +80,7 @@ router.post('/', auth, allowRoles('admin','user','agent','manager'), async (req,
     orderCountry,
     city,
     customerAddress,
+    customerArea: customerArea || '',
     locationLat,
     locationLng,
     customerLocation,

@@ -6,6 +6,7 @@ const OrderSchema = new mongoose.Schema({
   phoneCountryCode: { type: String, default: '' },
   orderCountry: { type: String, default: '' },
   city: { type: String, default: '' },
+  customerArea: { type: String, default: '' },
   customerAddress: { type: String, default: '' },
   locationLat: { type: Number },
   locationLng: { type: Number },

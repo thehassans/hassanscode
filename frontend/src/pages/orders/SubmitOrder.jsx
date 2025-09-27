@@ -19,6 +19,7 @@ export default function SubmitOrder(){
     phoneCountryCode: DEFAULT_COUNTRY.code, 
     orderCountry: DEFAULT_COUNTRY.name, 
     city:'', 
+    customerArea:'',
     customerAddress:'', 
     locationLat:'', 
     locationLng:'', 
@@ -70,7 +71,7 @@ export default function SubmitOrder(){
     if (name === 'phoneCountryCode'){
       const opt = COUNTRY_OPTS.find(o=>o.code===value)
       // Reset total so suggestion recalculates in the new currency; also reset city tied to country
-      setForm(f => ({ ...f, [name]: value, orderCountry: opt?.name || f.orderCountry, city: '', total: '' }))
+      setForm(f => ({ ...f, [name]: value, orderCountry: opt?.name || f.orderCountry, city: '', customerArea:'', total: '' }))
       return
     }
     setForm(f => ({ ...f, [name]: value }))
@@ -125,6 +126,7 @@ export default function SubmitOrder(){
         phoneCountryCode: country.code,
         orderCountry: country.name,
         city: '',
+        customerArea: '',
         customerPhone: local,
       }))
       setCustomerInfo({ name, fullPhone: `${country.code} ${local}`.trim() })
@@ -263,6 +265,7 @@ export default function SubmitOrder(){
         phoneCountryCode: DEFAULT_COUNTRY.code, 
         orderCountry: DEFAULT_COUNTRY.name, 
         city:'', 
+        customerArea:'',
         customerAddress:'', 
         locationLat:'', 
         locationLng:'', 
@@ -345,7 +348,9 @@ export default function SubmitOrder(){
       const data = await res.json()
       const display = data?.display_name || ''
       const addr = data?.address || {}
-      const cityGuess = addr.city || addr.town || addr.village || addr.suburb || ''
+      // Separate City and Area from reverse geocoding
+      const cityGuess = addr.city || addr.town || addr.village || ''
+      const areaGuess = addr.suburb || addr.neighbourhood || addr.district || addr.quarter || addr.residential || ''
       
       // Validate if resolved city matches selected city
       if (form.city && cityGuess) {
@@ -362,7 +367,12 @@ export default function SubmitOrder(){
         }
       }
       
-      setForm(f=> ({ ...f, customerAddress: display || f.customerAddress, city: f.city || cityGuess }))
+      setForm(f=> ({ 
+        ...f, 
+        customerAddress: display || f.customerAddress, 
+        city: f.city || cityGuess,
+        customerArea: f.customerArea || areaGuess,
+      }))
     }catch(err){ 
       setLocationValidation({ isValid: false, message: 'Failed to validate location' })
     }
@@ -408,7 +418,7 @@ export default function SubmitOrder(){
           <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap:16, alignItems:'start'}}>
             {/* Left column: form fields */}
             <div style={{display:'grid', gap:12, opacity: canCreateOrder ? 1 : 0.6, pointerEvents: canCreateOrder ? 'auto' : 'none'}}>
-              <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap:12}}>
+              <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap:12}}>
                 <div>
                   <div className="label">Phone Country Code</div>
                   <select className="input" name="phoneCountryCode" value={form.phoneCountryCode} onChange={onChange} required>
@@ -426,6 +436,11 @@ export default function SubmitOrder(){
                     ))}
                   </select>
                   <div style={{fontSize:12, opacity:0.8, marginTop:4}}>Country: {form.orderCountry}</div>
+                </div>
+                <div>
+                  <div className="label">Area</div>
+                  <input className="input" name="customerArea" value={form.customerArea} onChange={onChange} placeholder="e.g., Al Olaya, Deira, Seeb" />
+                  <div className="helper" style={{fontSize:12, opacity:0.8, marginTop:4}}>Auto-filled when resolving address; you can edit.</div>
                 </div>
               </div>
 
@@ -531,7 +546,7 @@ export default function SubmitOrder(){
               </div>
               <div>
                 <div className="label">Customer Address</div>
-                <input className="input" name="customerAddress" value={form.customerAddress} onChange={onChange} placeholder="Street, Building, Area" />
+                <input className="input" name="customerAddress" value={form.customerAddress} onChange={onChange} placeholder="Street, Building" />
               </div>
 
               <div>
@@ -686,6 +701,7 @@ export default function SubmitOrder(){
               <tr style={{position:'sticky', top:0, zIndex:1}}>
                 <th style={{textAlign:'left', padding:'10px 12px'}}>Order Country</th>
                 <th style={{textAlign:'left', padding:'10px 12px'}}>City</th>
+                <th style={{textAlign:'left', padding:'10px 12px'}}>Area</th>
                 <th style={{textAlign:'left', padding:'10px 12px'}}>Phone</th>
                 <th style={{textAlign:'left', padding:'10px 12px'}}>Address</th>
                 <th style={{textAlign:'left', padding:'10px 12px'}}>Location</th>
@@ -700,10 +716,10 @@ export default function SubmitOrder(){
             </thead>
             <tbody>
               {loadingList ? (
-                <tr><td colSpan={12} style={{padding:'12px', opacity:0.7}}>Loading...</td></tr>
+                <tr><td colSpan={13} style={{padding:'12px', opacity:0.7}}>Loading...</td></tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} style={{padding:'16px'}}>
+                  <td colSpan={13} style={{padding:'16px'}}>
                     <div style={{display:'flex', alignItems:'center', gap:10, opacity:0.8}}>
                       <span>🧾</span>
                       <div>No orders to show for this filter.</div>
@@ -715,6 +731,7 @@ export default function SubmitOrder(){
                   <tr key={o._id} style={{borderTop:'1px solid var(--border)', background: idx%2===0? 'transparent':'var(--panel-2)'}}>
                     <td style={{padding:'10px 12px'}}>{o.orderCountry || '-'}</td>
                     <td style={{padding:'10px 12px'}}>{o.city || '-'}</td>
+                    <td style={{padding:'10px 12px'}}>{o.customerArea || '-'}</td>
                     <td style={{padding:'10px 12px', whiteSpace:'nowrap'}} title={`${o.phoneCountryCode||''} ${o.customerPhone}`.trim()}>{`${o.phoneCountryCode || ''} ${o.customerPhone}`.trim()}</td>
                     <td style={{padding:'10px 12px', maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}} title={o.customerAddress||''}>{o.customerAddress || '-'}</td>
                     <td style={{padding:'10px 12px'}}>{o.locationLat && o.locationLng ? `(${Number(o.locationLat).toFixed(4)}, ${Number(o.locationLng).toFixed(4)})` : (o.customerLocation || '-')}</td>
