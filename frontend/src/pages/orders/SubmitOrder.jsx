@@ -530,9 +530,21 @@ export default function SubmitOrder(){
                 <textarea className="input" name="details" value={form.details} onChange={onChange} placeholder="Describe items, quantities, notes..." rows={4} required />
               </div>
 
-              {/* Preferred Timing Toggle */}
+              {/* Preferred Timing Toggle (optional) */}
               <div>
-                <div className="label">Preferred Timing</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div className="label">Preferred Timing (optional)</div>
+                  {form.preferredTiming && (
+                    <button
+                      type="button"
+                      className="btn small secondary"
+                      onClick={() => setForm(f => ({ ...f, preferredTiming: '' }))}
+                      title="Clear selection"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(3, 1fr)',
@@ -560,16 +572,16 @@ export default function SubmitOrder(){
                     </button>
                   ))}
                 </div>
-                {form.preferredTiming && (
-                  <div style={{
-                    fontSize: 12,
-                    opacity: 0.8,
-                    marginTop: 6,
-                    color: 'var(--muted)'
-                  }}>
-                    Selected: {timingOptions.find(opt => opt.value === form.preferredTiming)?.label}
-                  </div>
-                )}
+                <div style={{
+                  fontSize: 12,
+                  opacity: 0.8,
+                  marginTop: 6,
+                  color: 'var(--muted)'
+                }}>
+                  {form.preferredTiming
+                    ? `Selected: ${timingOptions.find(opt => opt.value === form.preferredTiming)?.label || ''}`
+                    : 'Leave blank if no preference.'}
+                </div>
               </div>
             </div>
 
